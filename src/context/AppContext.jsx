@@ -171,8 +171,25 @@ export function AppProvider({ children, session, onLogout }) {
     { id: 'n3', text: 'Reclamação urgente de Antônio Braga',  type: 'complaint', time: new Date() },
   ]
 
+  const NOTIFICAR_STATUS = ['em-busca','peca-encontrada','aguardando-preco','aguardando-repasse','aguardando-envio','finalizado']
+
   const moveCard = useCallback((cardId, newColumn) => {
-    setCards(prev => prev.map(c => c.id === cardId ? { ...c, column: newColumn } : c))
+    setCards(prev => {
+      const card = prev.find(c => c.id === cardId)
+      if (card?.fromWhatsapp && card?.numero && NOTIFICAR_STATUS.includes(newColumn)) {
+        fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+          body: JSON.stringify({
+            numero: card.numero,
+            nome: card.client?.name,
+            peca: card.pieces?.map(p => p.name).join(', '),
+            status: newColumn,
+          }),
+        }).catch(() => {})
+      }
+      return prev.map(c => c.id === cardId ? { ...c, column: newColumn } : c)
+    })
     atualizarPedido(cardId, { status: newColumn }).catch(() => {})
   }, [])
 
