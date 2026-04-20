@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Bell, Search, X, ChevronDown, Target, Phone } from 'lucide-react'
+import { Bell, Search, X, ChevronDown, Target, Phone, LogOut } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 export default function Header({ onProspect, onNewOrder }) {
-  const { notifications, showNotifications, setShowNotifications, geisaMode, setGeisaMode, searchQuery, setSearchQuery } = useApp()
+  const { notifications, showNotifications, setShowNotifications, geisaMode, setGeisaMode, searchQuery, setSearchQuery, currentUser, onLogout } = useApp()
   const alertCount = notifications.filter(n => n.type !== 'info').length
   const [imgError, setImgError] = useState(false)
 
@@ -103,23 +103,26 @@ export default function Header({ onProspect, onNewOrder }) {
         )}
       </div>
 
-      {/* User / Geisa Toggle */}
-      <button
-        onClick={() => setGeisaMode(!geisaMode)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all shrink-0"
-        style={geisaMode
-          ? { background: 'rgba(236,72,153,0.15)', border: '1px solid rgba(236,72,153,0.3)' }
-          : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
-      >
-        <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-sm ${geisaMode ? 'bg-pink-500 text-white' : 'bg-blue-600 text-white'}`}>
-          {geisaMode ? 'G' : 'C'}
+      {/* Usuário logado + logout */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
+            {(currentUser?.nome || currentUser?.email || 'U')[0].toUpperCase()}
+          </div>
+          <div className="hidden sm:block text-left">
+            <p className="text-xs font-semibold leading-tight text-white">{currentUser?.nome || currentUser?.email}</p>
+            <p className="text-[10px] leading-tight text-blue-400 capitalize">{currentUser?.cargo || 'usuário'}</p>
+          </div>
         </div>
-        <div className="hidden sm:block text-left">
-          <p className="text-xs font-semibold leading-tight text-white">{geisaMode ? 'Geisa' : 'Carlos'}</p>
-          <p className="text-[10px] leading-tight" style={{ color: geisaMode ? '#f9a8d4' : '#93c5fd' }}>{geisaMode ? 'Gerente' : 'Vendedor'}</p>
-        </div>
-        <ChevronDown size={13} className="text-gray-500 hidden sm:block" />
-      </button>
+        {onLogout && (
+          <button onClick={onLogout} title="Sair"
+            className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-red-400 transition-colors"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <LogOut size={15} />
+          </button>
+        )}
+      </div>
     </header>
   )
 }

@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react'
-import { INITIAL_CARDS, COLUMNS, EMPLOYEES, COLLABORATORS, FREIGHT_TABLE } from '../data/mockData'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { COLUMNS, EMPLOYEES, COLLABORATORS, FREIGHT_TABLE } from '../data/mockData'
+import { supabase, buscarPedidos, atualizarPedido } from '../lib/supabase'
 
 const AppContext = createContext(null)
 
@@ -76,8 +77,30 @@ const INITIAL_USERS = [
   },
 ]
 
-export function AppProvider({ children }) {
-  const [cards, setCards]                         = useState(INITIAL_CARDS)
+function pedidoParaCard(p) {
+  return {
+    id: p.id,
+    column: p.status || 'novo-pedido',
+    client: { name: p.nome_cliente || 'Cliente', phone: p.numero },
+    vehicle: p.veiculo ? { brand: '', model: p.veiculo, year: '' } : null,
+    pieces: [{
+      id: p.id + '-p0',
+      name: p.peca,
+      status: 'searching',
+      price: (p.preco_dinheiro || p.preco_pix || p.preco_cartao)
+        ? { cash: p.preco_dinheiro, pix: p.preco_pix, card: p.preco_cartao }
+        : null,
+    }],
+    messages: [],
+    priority: 'normal',
+    createdAt: new Date(p.criado_em),
+    numero: p.numero,
+    fromWhatsapp: true,
+  }
+}
+
+export function AppProvider({ children, session, onLogout }) {
+  const [cards, setCards]                         = useState([])
   const [view, setView]                           = useState('kanban')
   const [selectedCard, setSelectedCard]           = useState(null)
   const [geisaMode, setGeisaMode]                 = useState(false)
@@ -85,6 +108,28 @@ export function AppProvider({ children }) {
   const [searchQuery, setSearchQuery]             = useState('')
   const [users, setUsers]                         = useState(INITIAL_USERS)
   const [currentUserId, setCurrentUserId]         = useState('admin')
+
+  // Carregar pedidos do Supabase + Realtime
+  useEffect(() => {
+    buscarPedidos().then(pedidos => {
+      setCards(pedidos.map(pedidoParaCard))
+    })
+
+    const channel = supabase
+      .channel('pedidos-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, ({ new: p }) => {
+        setCards(prev => [pedidoParaCard(p), ...prev])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, ({ new: p }) => {
+        setCards(prev => prev.map(c => c.id === p.id ? { ...pedidoParaCard(p), messages: c.messages } : c))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  // Usuário do Supabase (sessão real)
+  const supabaseUser = session?.user ?? null
 
   const currentUser = users.find(u => u.id === currentUserId) || users[0]
 
@@ -109,6 +154,7 @@ export function AppProvider({ children }) {
 
   const moveCard = useCallback((cardId, newColumn) => {
     setCards(prev => prev.map(c => c.id === cardId ? { ...c, column: newColumn } : c))
+    atualizarPedido(cardId, { status: newColumn }).catch(() => {})
   }, [])
 
   const updatePiece = useCallback((cardId, pieceId, fields) => {
@@ -277,8 +323,9 @@ export function AppProvider({ children }) {
       addPiecesToCard,
       confirmCardPayment,
       paidCollabPieces,
-      users, currentUser, currentUserId, setCurrentUserId, can, updateUserPermissions, ALL_PERMISSIONS,
+      users, currentUser: supabaseUser ?? currentUser, currentUserId, setCurrentUserId, can, updateUserPermissions, ALL_PERMISSIONS,
       disparosQueue, setDisparosQueue, adicionarAoDisparo,
+      onLogout,
     }}>
       {children}
     </AppContext.Provider>

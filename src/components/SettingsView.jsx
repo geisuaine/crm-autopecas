@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Shield, User, CheckCircle, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import WhatsAppStatus from './WhatsAppStatus'
 
 const PERM_LABELS = {
   kanban:        { label: 'Painel Kanban',       desc: 'Ver e gerenciar atendimentos',     emoji: '📋' },
@@ -27,6 +28,12 @@ export default function SettingsView() {
       <div>
         <h2 className="text-xl font-black text-white">Configurações</h2>
         <p className="text-xs text-gray-500 mt-0.5">Controle de acesso e permissões por funcionário</p>
+      </div>
+
+      {/* WhatsApp */}
+      <div>
+        <p className="text-sm font-black text-white uppercase tracking-wider mb-3">💬 WhatsApp</p>
+        <WhatsAppStatus />
       </div>
 
       {/* Admins */}

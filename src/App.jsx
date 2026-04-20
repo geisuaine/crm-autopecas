@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppProvider, useApp } from './context/AppContext'
-import LandingPage from './components/LandingPage'
+import LoginScreen from './components/LoginScreen'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import KanbanBoard from './components/KanbanBoard'
@@ -16,6 +16,7 @@ import NewOrderModal from './components/NewOrderModal'
 import SettingsView from './components/SettingsView'
 import DisparosView from './components/DisparosView'
 import { LayoutDashboard, Users, Truck, BarChart3, Settings } from 'lucide-react'
+import { getSession, fazerLogout } from './lib/supabase'
 
 const MOBILE_NAV = [
   { id: 'kanban',        label: 'Painel',     icon: LayoutDashboard },
@@ -82,14 +83,26 @@ function AppContent() {
 }
 
 export default function App() {
-  const [noSistema, setNoSistema] = useState(false)
+  const [session, setSession] = useState(undefined) // undefined = carregando
 
-  if (!noSistema) {
-    return <LandingPage onEntrar={() => setNoSistema(true)} />
+  useEffect(() => {
+    getSession().then(s => setSession(s ?? null))
+  }, [])
+
+  if (session === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#060d1f' }}>
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!session) {
+    return <LoginScreen onLogin={(_, s) => setSession(s)} />
   }
 
   return (
-    <AppProvider>
+    <AppProvider session={session} onLogout={() => { fazerLogout(); setSession(null) }}>
       <AppContent />
     </AppProvider>
   )
