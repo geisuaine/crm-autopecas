@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { COLUMNS, EMPLOYEES, COLLABORATORS, FREIGHT_TABLE } from '../data/mockData'
-import { supabase, buscarPedidos, atualizarPedido } from '../lib/supabase'
+import { supabase, buscarPedidos, atualizarPedido, buscarMensagens } from '../lib/supabase'
 
 const AppContext = createContext(null)
 
@@ -128,6 +128,24 @@ export function AppProvider({ children, session, onLogout }) {
 
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  // Carregar mensagens do WhatsApp quando card é selecionado
+  useEffect(() => {
+    if (!selectedCard?.numero || !selectedCard?.fromWhatsapp) return
+    buscarMensagens(selectedCard.numero).then(msgs => {
+      if (!msgs.length) return
+      const convertidas = msgs.map(m => ({
+        id: m.id,
+        sender: m.de_mim ? 'ai' : 'client',
+        type: 'text',
+        content: m.mensagem,
+        time: new Date(m.criado_em),
+      }))
+      setCards(prev => prev.map(c =>
+        c.id === selectedCard.id ? { ...c, messages: convertidas } : c
+      ))
+    })
+  }, [selectedCard?.id])
 
   // Usuário do Supabase (sessão real)
   const supabaseUser = session?.user ?? null
