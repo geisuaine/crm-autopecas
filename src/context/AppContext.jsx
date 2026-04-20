@@ -96,6 +96,7 @@ function pedidoParaCard(p) {
     createdAt: new Date(p.criado_em),
     numero: p.numero,
     fromWhatsapp: true,
+    ai: { audioConverted: false, photoAnalyzed: false, codeIdentified: null },
   }
 }
 
