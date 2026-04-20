@@ -397,16 +397,18 @@ function PieceRow({ piece, cardId }) {
           )
         )}
 
-        {/* Action buttons */}
-        {!priceMode && !collabMode && (piece.status === 'not-found' || piece.status === 'searching') && (
+        {/* Primary action buttons — Tenho / Verificar com colaboradores */}
+        {!priceMode && !collabMode && !collabReply && (piece.status === 'not-found' || piece.status === 'searching') && (
           <div className="flex gap-2">
-            <button onClick={() => updatePieceStatus(cardId, piece.id, 'waiting-price')}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2.5 rounded-xl font-bold bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors">
-              ✓ Peça Encontrada
+            <button onClick={() => setPriceMode(true)}
+              className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
+              style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 14px rgba(22,163,74,0.4)' }}>
+              ✅ Tenho
             </button>
             <button onClick={() => setCollabMode(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-2.5 rounded-xl font-bold bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors">
-              <Users size={14} /> Colaboradores
+              className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
+              style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
+              <Users size={14} /> Verificar com colaboradores
             </button>
           </div>
         )}
@@ -695,8 +697,9 @@ function InfoTab({ card }) {
 }
 
 export default function CardModal({ card, onClose }) {
-  const { columns, moveCard, addMessage, confirmCardPayment } = useApp()
-  const [tab,   setTab]   = useState('chat')
+  const { columns, moveCard, addMessage, confirmCardPayment, can, currentUser } = useApp()
+  const canChat = can('sales') || currentUser?.role === 'admin'
+  const [tab,   setTab]   = useState(canChat ? 'chat' : 'pieces')
   const [reply, setReply] = useState('')
   const col = columns.find(c => c.id === card.column)
 
@@ -805,7 +808,11 @@ export default function CardModal({ card, onClose }) {
 
         {/* Tabs */}
         <div className="bg-white border-b border-gray-100 flex shrink-0">
-          {[['chat','💬 Conversa'],['pieces','🔧 Peças'],['info','📋 Informações']].map(([id, lbl]) => (
+          {[
+            canChat ? ['chat','💬 Conversa'] : null,
+            ['pieces','🔧 Peças'],
+            ['info','📋 Informações'],
+          ].filter(Boolean).map(([id, lbl]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex-1 py-3 text-sm font-bold transition-colors ${tab === id ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}>
               {lbl}
@@ -855,8 +862,8 @@ export default function CardModal({ card, onClose }) {
           <PaymentTotal pieces={card.pieces} addMessage={addMessage} cardId={card.id} />
         )}
 
-        {/* Reply bar */}
-        {tab === 'chat' && (
+        {/* Reply bar — only for authorized users */}
+        {tab === 'chat' && canChat && (
           <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-center gap-2 shrink-0">
             <input
               value={reply}

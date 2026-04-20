@@ -1,4 +1,4 @@
-import { Clock, Users, AlertCircle, CheckCircle, Phone, MapPin } from 'lucide-react'
+import { Clock, Users, AlertCircle, CheckCircle, Phone, Car } from 'lucide-react'
 
 function timeSince(date) {
   const d = Math.floor((Date.now() - new Date(date)) / 60000)
@@ -12,11 +12,11 @@ function pieceStatusSummary(pieces) {
   if (!pieces.length) return { label: 'Sem ofertas', color: '#94a3b8' }
   const found = pieces.filter(p => p.status === 'found' || p.status === 'delivered').length
   const total = pieces.length
-  if (found === total) return { label: `${found} oferta${found > 1 ? 's' : ''}`, color: '#16a34a' }
-  if (found > 0)       return { label: `${found}/${total} encontrada${found > 1 ? 's' : ''}`, color: '#ca8a04' }
+  if (found === total) return { label: `${found} encontrada${found > 1 ? 's' : ''}`, color: '#16a34a' }
+  if (found > 0)       return { label: `${found}/${total} encontrada${found > 1 ? 's' : ''}`, color: '#d97706' }
   const nf = pieces.filter(p => p.status === 'not-found').length
   if (nf === total)    return { label: 'Sem ofertas', color: '#dc2626' }
-  return { label: 'Buscando...', color: '#ca8a04' }
+  return { label: 'Buscando...', color: '#d97706' }
 }
 
 export default function PieceCard({ card, column, onClick }) {
@@ -28,47 +28,49 @@ export default function PieceCard({ card, column, onClick }) {
   const mainPiece  = card.pieces[0] ?? null
   const extraCount = card.pieces.length > 1 ? card.pieces.length - 1 : 0
 
-  const hasPrice   = mainPiece?.price
-  const allFound   = card.pieces.length > 0 && card.pieces.every(p => p.status === 'found' || p.status === 'delivered')
+  const hasPrice = mainPiece?.price
+  const allFound = card.pieces.length > 0 && card.pieces.every(p => p.status === 'found' || p.status === 'delivered')
 
   return (
     <div
       onClick={onClick}
-      className="rounded-xl cursor-pointer select-none fade-in transition-all duration-150 hover:scale-[1.015]"
+      className="rounded-2xl cursor-pointer select-none fade-in transition-all duration-150 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
       style={{
         background: '#ffffff',
-        border: urgent || isOver
-          ? '2px solid #ef4444'
-          : '1.5px solid #e2e8f0',
-        boxShadow: '0 3px 16px rgba(0,0,0,0.28)',
+        border: urgent || isOver ? '2.5px solid #ef4444' : '1.5px solid #e2e8f0',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
         overflow: 'hidden',
       }}
     >
-      {/* Type label row — like "OFICINA" in Grupão */}
-      <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: column.accent }}>
-            {column.emoji} {column.label}
+      {/* Colored header band — vivid like Grupão */}
+      <div
+        className="px-3 pt-2.5 pb-2 flex items-center justify-between"
+        style={{ background: column.accent }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="text-base leading-none">{column.emoji}</span>
+          <span className="text-[11px] font-black uppercase tracking-widest text-white opacity-90">
+            {column.label}
           </span>
           {card.client.type && (
-            <span className="text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full" style={{ background: column.accent + '20', color: column.accent }}>
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/20 text-white">
               {card.client.type}
             </span>
           )}
           {card.client.isReturning && (
-            <span className="text-[9px] font-bold text-blue-500 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full">⭐ VIP</span>
+            <span className="text-[9px] font-bold text-yellow-200">⭐ VIP</span>
           )}
         </div>
-        <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: isOver ? '#ef4444' : '#94a3b8' }}>
+        <div className="flex items-center gap-1 text-[10px] text-white/70 shrink-0">
           <Clock size={9} />
-          <span className={isOver || urgent ? 'font-bold' : ''}>{timeSince(card.createdAt)}</span>
-          {urgent && <AlertCircle size={9} className="text-red-500 ml-0.5" />}
+          <span className={isOver || urgent ? 'font-bold text-yellow-200' : ''}>{timeSince(card.createdAt)}</span>
+          {(isOver || urgent) && <AlertCircle size={9} className="text-yellow-300 ml-0.5" />}
         </div>
       </div>
 
-      {/* Piece name — big bold like Grupão */}
-      <div className="px-3 pb-1">
-        <p className="font-black text-gray-900 leading-tight uppercase" style={{ fontSize: 17, letterSpacing: '-0.3px' }}>
+      {/* Piece name — BIG bold like Grupão marketplace */}
+      <div className="px-3 pt-2.5 pb-1">
+        <p className="font-black text-gray-900 leading-tight uppercase" style={{ fontSize: 16, letterSpacing: '-0.2px' }}>
           {mainPiece ? mainPiece.name : card.client.name}
         </p>
         {extraCount > 0 && (
@@ -78,47 +80,41 @@ export default function PieceCard({ card, column, onClick }) {
         )}
       </div>
 
-      {/* Vehicle block — like "GM ZAFIRA ELITE / 2006 | 2.0" */}
-      <div className="px-3 pb-2">
+      {/* Vehicle info */}
+      <div className="px-3 pb-2.5">
         {card.vehicle ? (
-          <>
-            <p className="text-[13px] font-black text-gray-700 uppercase tracking-tight">
+          <div className="flex items-center gap-1.5">
+            <Car size={11} className="text-gray-400 shrink-0" />
+            <p className="text-[13px] font-bold text-gray-600 uppercase tracking-tight">
               {card.vehicle.brand} {card.vehicle.model}
+              {card.vehicle.year && <span className="font-black ml-1" style={{ color: column.accent }}>{card.vehicle.year}</span>}
             </p>
-            <p className="text-[13px] font-bold" style={{ color: column.accent }}>
-              {card.vehicle.year}
-            </p>
-          </>
+          </div>
         ) : (
           <p className="text-[12px] text-gray-400 italic">Veículo não informado</p>
         )}
-        <p className="text-[12px] text-gray-600 mt-0.5 flex items-center gap-1 font-semibold">
-          <Phone size={9} className="text-green-500" />
+        <p className="text-[12px] text-gray-500 mt-0.5 flex items-center gap-1 font-semibold">
+          <Phone size={9} className="text-green-500 shrink-0" />
           {card.client.phone ? card.client.phone : card.client.name}
         </p>
-        {card.client.address && (
-          <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 leading-tight">
-            <MapPin size={9} className="text-gray-400 shrink-0" />
-            {card.client.address}
-          </p>
-        )}
       </div>
 
-      {/* Divider */}
-      <div style={{ borderTop: '1px solid #f1f5f9' }} />
-
-      {/* Bottom row — offers + colabs */}
-      <div className="flex items-center justify-between px-3 py-2">
+      {/* Bottom bar */}
+      <div
+        className="flex items-center justify-between px-3 py-2"
+        style={{ background: column.accent + '12', borderTop: `1.5px solid ${column.accent}22` }}
+      >
         <div className="flex items-center gap-1.5">
           {allFound && <CheckCircle size={12} className="text-green-500" />}
-          <span className="text-[12px] font-semibold" style={{ color: summary.color }}>
+          <span className="text-[12px] font-bold" style={{ color: summary.color }}>
             {summary.label}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5">
           {hasPrice && (
-            <span className="text-[11px] font-black text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full text-white"
+              style={{ background: column.accent }}>
               R${mainPiece.price.cash}
             </span>
           )}

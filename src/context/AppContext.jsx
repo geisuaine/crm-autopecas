@@ -24,7 +24,7 @@ const STATUS_MSGS = {
   'delivered':     (name) => `🏁 A peça *${name}* foi entregue com sucesso!\n\nMuito obrigado pela preferência. Qualquer dúvida, estamos à disposição! ⭐`,
 }
 
-const ALL_PERMISSIONS = ['kanban','sales','repasse','collaborators','freight','reports','newOrder','prospect','settings']
+const ALL_PERMISSIONS = ['kanban','sales','repasse','collaborators','freight','reports','newOrder','prospect','settings','approveMedia']
 
 const INITIAL_USERS = [
   {
