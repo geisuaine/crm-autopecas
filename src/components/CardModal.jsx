@@ -74,8 +74,8 @@ const PIECE_STATUS_CFG = {
   'delivered':     { label: 'Entregue',       bg: '#dcfce7', color: '#16a34a', dot: '#22c55e' },
 }
 
-function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
-  const { updatePieceStatus, updatePiece, collaborators, addMessage, can } = useApp()
+function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo, cardChannel }) {
+  const { updatePieceStatus, updatePiece, collaborators, addMessage, can, moveCard } = useApp()
   const s = PIECE_STATUS_CFG[piece.status] || PIECE_STATUS_CFG['searching']
   const [priceMode,      setPriceMode]      = useState(false)
   const [collabMode,     setCollabMode]     = useState(false)
@@ -119,22 +119,22 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
   }
 
   function clickVerificarColaboradores() {
-    // Send WhatsApp to client immediately
-    if (cardNumero) {
+    const numero = cardNumero
+    if (numero) {
       fetch(`https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          numero: cardNumero,
+          numero,
           nome: cardClientName || 'Cliente',
-          peca: piece.name,
-          status: 'verificando-colaboradores',
+          customMessage: `Olá, ${(cardClientName || 'Cliente').split(' ')[0]}! 👋\n\nNo momento não tenho a peça *${piece.name}* no estoque, mas já estou verificando com nossos colaboradores.\n\nAssim que tiver resposta, já te aviso! ⏳`,
         }),
       }).catch(() => {})
     }
+    moveCard(cardId, 'em-busca')
     addMessage(cardId, {
       sender: 'ai', type: 'text',
-      content: `📲 Mensagem enviada ao cliente: "No momento não tenho a peça *${piece.name}* no estoque, mas já estou verificando com os colaboradores. Assim que tiver resposta, já te aviso!"`,
+      content: `📲 Cliente notificado. Pedido movido para "Em Busca".`,
     })
     setCollabMode(true)
   }
@@ -484,7 +484,7 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
                   if (enviados > 0) {
                     addMessage(cardId, {
                       sender: 'ai', type: 'text',
-                      content: `📲 Perguntei sobre *${piece.name}* para ${enviados} colaborador(es).`,
+                      content: `📲 Mensagem enviada para ${enviados} colaborador(es) sobre *${piece.name}*.`,
                     })
                   }
                   setCollabMode(false)
@@ -1128,7 +1128,7 @@ export default function CardModal({ card, onClose }) {
             <div className="p-4 space-y-3">
               {card.pieces.length === 0
                 ? <p className="text-center text-gray-400 text-sm py-10">Nenhuma peça registrada</p>
-                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} cardVeiculo={card.vehicle} />)
+                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} cardVeiculo={card.vehicle} cardChannel={card.channel} />)
               }
               {card.collaboratorsSent > 0 && (
                 <div className="bg-orange-50 rounded-2xl p-4 flex items-center gap-4 border border-orange-100">
