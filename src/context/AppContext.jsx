@@ -114,6 +114,23 @@ export function AppProvider({ children, session, onLogout }) {
   const [searchQuery, setSearchQuery]             = useState('')
   const [users, setUsers]                         = useState(INITIAL_USERS)
   const [currentUserId, setCurrentUserId]         = useState('admin')
+  const [collaboratorsList, setCollaboratorsList] = useState(COLLABORATORS)
+
+  const addCollaborator = useCallback((dados) => {
+    const novo = {
+      id: `co${Date.now()}`,
+      name: dados.name,
+      store: dados.store || dados.name,
+      phone: dados.phone || '',
+      neighborhood: dados.neighborhood || '',
+      city: dados.city || 'Rio de Janeiro',
+      inRio: (dados.city || '').toLowerCase().includes('rio') || !dados.city,
+      delivery: dados.delivery || false,
+      responseTime: 30,
+    }
+    setCollaboratorsList(prev => [...prev, novo])
+    return novo
+  }, [])
 
   // Carregar pedidos do Supabase + Realtime
   useEffect(() => {
@@ -374,7 +391,8 @@ export function AppProvider({ children, session, onLogout }) {
       notifications,
       columns: COLUMNS,
       employees: EMPLOYEES,
-      collaborators: COLLABORATORS,
+      collaborators: collaboratorsList,
+      addCollaborator,
       freightTable: FREIGHT_TABLE,
       moveCard,
       updatePieceStatus,

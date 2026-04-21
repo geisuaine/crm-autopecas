@@ -3,10 +3,17 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 export default function CollaboratorsView() {
-  const { collaborators } = useApp()
+  const { collaborators, addCollaborator } = useApp()
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', store: '', phone: '', neighborhood: '', city: 'Rio de Janeiro', delivery: false })
+
+  function salvarColaborador() {
+    if (!form.name.trim()) return
+    addCollaborator(form)
+    setForm({ name: '', store: '', phone: '', neighborhood: '', city: 'Rio de Janeiro', delivery: false })
+    setShowAdd(false)
+  }
 
   const filtered = collaborators.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,7 +76,7 @@ export default function CollaboratorsView() {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <button className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-xl font-bold transition-colors">Salvar Colaborador</button>
+              <button onClick={salvarColaborador} className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-xl font-bold transition-colors">Salvar Colaborador</button>
               <button onClick={() => setShowAdd(false)} className="px-5 py-2.5 text-sm rounded-xl font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">Cancelar</button>
             </div>
           </div>
