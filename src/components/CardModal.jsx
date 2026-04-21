@@ -149,24 +149,44 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName }) {
     if (!replyCollabId || !replyCost) return
     const co = collaborators.find(c => c.id === replyCollabId)
     const costVal = parseFloat(replyCost)
-    // Save collaborator + cost on the piece, set status to waiting-price
+
+    const novaResposta = {
+      collabId: replyCollabId,
+      collabName: co?.name || 'Colaborador',
+      collabStore: co?.store || '',
+      collabPhone: co?.phone || '',
+      cost: costVal,
+      note: replyNote,
+      respondedAt: new Date().toISOString(),
+    }
+
+    const respostasAtuais = piece.collabResponses || []
+    const todasRespostas = [...respostasAtuais, novaResposta]
+
+    // Best (cheapest) collab becomes the assigned collaborator
+    const melhor = [...todasRespostas].sort((a, b) => a.cost - b.cost)[0]
+
     updatePiece(cardId, piece.id, {
-      collaboratorId: replyCollabId,
-      price: { ...(piece.price || {}), collaboratorCost: costVal },
+      collaboratorId: melhor.collabId,
+      collabResponses: todasRespostas,
+      price: { ...(piece.price || {}), collaboratorCost: melhor.cost },
       status: 'waiting-price',
     })
-    // Add collaborator message bubble to chat
+
     addMessage(cardId, {
       sender: 'collaborator',
       type: 'text',
       collabName: co?.name,
       collabPhone: co?.phone,
-      content: `Tenho a peça *${piece.name}*.\n\n💵 Valor: R$ ${costVal.toFixed(2)} (dinheiro)${replyNote ? `\n\n${replyNote}` : ''}`,
+      content: `Tenho a peça *${piece.name}*.\n\n💵 Valor: R$ ${costVal.toFixed(2)}${replyNote ? `\n\n${replyNote}` : ''}`,
     })
+
     setCollabReply(false)
     setReplyCollabId('')
     setReplyCost('')
     setReplyNote('')
+    // Auto-open price form to set client price
+    setPriceMode(true)
   }
 
   function savePrice() {
@@ -230,6 +250,44 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName }) {
                 <p className="text-[11px] mt-0.5 font-medium" style={{ color: clr, opacity: 0.75 }}>{ico} {lbl}</p>
               </div>
             ) : null)}
+          </div>
+        )}
+
+        {/* Collaborator responses — ordered list */}
+        {piece.collabResponses?.length > 0 && (
+          <div className="rounded-2xl overflow-hidden border border-orange-100">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-orange-50" style={{ background: '#fff7ed' }}>
+              <Users size={12} className="text-orange-500" />
+              <p className="text-[11px] font-black text-orange-700 uppercase tracking-wider">
+                {piece.collabResponses.length} loja{piece.collabResponses.length > 1 ? 's' : ''} respondeu
+              </p>
+            </div>
+            {[...piece.collabResponses]
+              .sort((a, b) => a.cost - b.cost)
+              .map((r, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2.5 border-b border-gray-50 last:border-0 bg-white">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black text-white shrink-0"
+                      style={{ background: i === 0 ? '#16a34a' : '#94a3b8' }}>
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-800 truncate">{r.collabName}</p>
+                      {r.collabStore && <p className="text-[11px] text-gray-400 truncate">{r.collabStore}</p>}
+                      {r.note && <p className="text-[11px] text-gray-500 italic truncate">{r.note}</p>}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <p className="text-sm font-black" style={{ color: i === 0 ? '#16a34a' : '#64748b' }}>
+                      R$ {r.cost.toFixed(2)}
+                    </p>
+                    {i === 0 && (
+                      <p className="text-[9px] font-bold text-green-600 uppercase">melhor</p>
+                    )}
+                  </div>
+                </div>
+              ))
+            }
           </div>
         )}
 

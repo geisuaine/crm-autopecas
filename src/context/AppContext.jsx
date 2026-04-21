@@ -78,19 +78,24 @@ const INITIAL_USERS = [
 ]
 
 function pedidoParaCard(p) {
+  // Split multiple pieces stored as "farol, radiador, paralama"
+  const pecaNomes = p.peca
+    ? p.peca.split(',').map(s => s.trim()).filter(Boolean)
+    : ['Peça não identificada']
+
   return {
     id: p.id,
     column: p.status || 'novo-pedido',
     client: { name: p.nome_cliente || 'Cliente', phone: p.numero },
     vehicle: p.veiculo ? { brand: '', model: p.veiculo, year: '' } : null,
-    pieces: [{
-      id: p.id + '-p0',
-      name: p.peca,
+    pieces: pecaNomes.map((nome, i) => ({
+      id: p.id + `-p${i}`,
+      name: nome,
       status: 'searching',
-      price: (p.preco_dinheiro || p.preco_pix || p.preco_cartao)
+      price: i === 0 && (p.preco_dinheiro || p.preco_pix || p.preco_cartao)
         ? { cash: p.preco_dinheiro, pix: p.preco_pix, card: p.preco_cartao }
         : null,
-    }],
+    })),
     messages: [],
     priority: 'normal',
     createdAt: new Date(p.criado_em),
@@ -212,17 +217,17 @@ export function AppProvider({ children, session, onLogout }) {
   const EARLY_COLS = ['novo-pedido', 'em-busca', 'aguardando-preco']
 
   const updatePieceStatus = useCallback((cardId, pieceId, status, price = null) => {
-    setCards(prev => prev.map(c => {
-      if (c.id !== cardId) return c
+    setCards(prev => {
+      const c = prev.find(card => card.id === cardId)
+      if (!c) return prev
 
       const piece = c.pieces.find(p => p.id === pieceId)
-      if (!piece) return c
+      if (!piece) return prev
 
       const updatedPieces = c.pieces.map(p =>
         p.id === pieceId ? { ...p, status, ...(price ? { price } : {}) } : p
       )
 
-      // Build auto message
       let msg = null
       if (price) {
         msg = autoMsg(buildPriceMsg(piece.name, price))
@@ -230,26 +235,37 @@ export function AppProvider({ children, session, onLogout }) {
         msg = autoMsg(STATUS_MSGS[status](piece.name))
       }
 
-      // Column auto-advance logic:
-      // 1. Price set → aguardando-repasse
-      // 2. Piece found/waiting-price → peca-encontrada (if still in early column)
       const newColumn = price && WAITING_PAYMENT_COLS.includes(c.column)
         ? 'aguardando-repasse'
         : (status === 'waiting-price' || status === 'found') && EARLY_COLS.includes(c.column)
         ? 'peca-encontrada'
         : c.column
 
-      return {
-        ...c,
-        column: newColumn,
-        pieces: updatedPieces,
-        messages: msg ? [...c.messages, msg] : c.messages,
+      // Side effects after render (notify + DB sync)
+      if (newColumn !== c.column) {
+        Promise.resolve().then(() => {
+          atualizarPedido(cardId, { status: newColumn }).catch(() => {})
+          if (c.fromWhatsapp && c.numero && NOTIFICAR_STATUS.includes(newColumn)) {
+            fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+              body: JSON.stringify({
+                numero: c.numero,
+                nome: c.client?.name,
+                peca: updatedPieces.map(p => p.name).join(', '),
+                status: newColumn,
+              }),
+            }).catch(() => {})
+          }
+        })
       }
-    }))
-    // Sync new column to DB if applicable
-    if (status === 'waiting-price' || status === 'found') {
-      atualizarPedido(cardId, { status: 'peca-encontrada' }).catch(() => {})
-    }
+
+      return prev.map(card =>
+        card.id === cardId
+          ? { ...card, column: newColumn, pieces: updatedPieces, messages: msg ? [...card.messages, msg] : card.messages }
+          : card
+      )
+    })
   }, [])
 
   const addCard = useCallback(({ client, vehicle, pieces: pieceNames, welcomeMsg }) => {
