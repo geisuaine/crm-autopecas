@@ -436,46 +436,72 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
 
         {/* Collaborators mode */}
         {collabMode && (
-          <div className="p-3 bg-gray-50 rounded-xl space-y-2">
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Enviar para colaboradores</p>
-            {collaborators.map(co => (
-              <label key={co.id} className="flex items-center gap-2.5 cursor-pointer py-1.5 border-b border-gray-100 last:border-0">
-                <input type="checkbox" checked={sentCollabs.includes(co.id)} onChange={() => setSentCollabs(prev => prev.includes(co.id) ? prev.filter(x => x !== co.id) : [...prev, co.id])} className="accent-blue-600 w-4 h-4" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-700 font-semibold">{co.name}</p>
-                  <p className="text-[11px] text-gray-400">{co.store} · {co.responseTime}min</p>
-                </div>
-                {sentCollabs.includes(co.id) && <span className="text-[11px] text-green-600 font-bold shrink-0">✓ Enviado</span>}
-              </label>
-            ))}
-            <button
-              disabled={sentCollabs.length === 0}
-              onClick={() => {
-                const veiculoStr = cardVeiculo
-                  ? `${cardVeiculo.brand} ${cardVeiculo.model} ${cardVeiculo.year}`.trim()
-                  : ''
-                sentCollabs.forEach(collabId => {
-                  const co = collaborators.find(c => c.id === collabId)
-                  if (!co?.phone) return
-                  const fone = co.phone.replace(/\D/g, '')
-                  const numFormatado = fone.startsWith('55') ? fone : `55${fone}`
-                  const msg = `Oi ${co.name}! Tenho um cliente precisando da peca: *${piece.name}*${veiculoStr ? ` para ${veiculoStr}` : ''}.\n\nVoce tem disponivel? Qual o valor? Aguardo retorno!`
-                  fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
-                    body: JSON.stringify({ numero: numFormatado, customMessage: msg }),
-                  }).catch(() => {})
-                })
-                addMessage(cardId, {
-                  sender: 'ai', type: 'text',
-                  content: `📲 Mensagem enviada para ${sentCollabs.length} colaborador(es) perguntando sobre *${piece.name}*.`,
-                })
-                setCollabMode(false)
-              }}
-              className="w-full py-2.5 text-sm rounded-xl font-bold text-white transition-colors disabled:opacity-40"
-              style={{ background: sentCollabs.length > 0 ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : '#94a3b8' }}>
-              {sentCollabs.length > 0 ? `Enviar para ${sentCollabs.length} colaborador(es)` : 'Selecione colaboradores'}
-            </button>
+          <div className="rounded-2xl overflow-hidden border border-blue-100 bg-white">
+            <div className="px-3 py-2.5 border-b border-blue-50 flex items-center justify-between" style={{ background: '#eff6ff' }}>
+              <p className="text-[11px] font-black text-blue-700 uppercase tracking-wider">Selecionar colaboradores</p>
+              <button onClick={() => setCollabMode(false)} className="text-[10px] text-gray-400 hover:text-gray-600 font-bold">fechar</button>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {collaborators.map(co => {
+                const temFone = !!(co.phone?.replace(/\D/g, ''))
+                const selecionado = sentCollabs.includes(co.id)
+                return (
+                  <label key={co.id} className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${!temFone ? 'opacity-50' : 'hover:bg-blue-50'}`}>
+                    <input
+                      type="checkbox"
+                      disabled={!temFone}
+                      checked={selecionado}
+                      onChange={() => temFone && setSentCollabs(prev =>
+                        prev.includes(co.id) ? prev.filter(x => x !== co.id) : [...prev, co.id]
+                      )}
+                      className="accent-blue-600 w-4 h-4 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800 truncate">{co.name}</p>
+                      {temFone
+                        ? <p className="text-[11px] text-green-600 font-mono">{co.phone}</p>
+                        : <p className="text-[11px] text-red-400 font-bold">⚠ Sem telefone — vá em Colaboradores e cadastre</p>
+                      }
+                    </div>
+                    {selecionado && <CheckCircle size={14} className="text-blue-500 shrink-0" />}
+                  </label>
+                )
+              })}
+            </div>
+            <div className="px-3 py-2.5 border-t border-blue-100">
+              <button
+                disabled={sentCollabs.length === 0}
+                onClick={() => {
+                  const veiculoStr = cardVeiculo
+                    ? `${cardVeiculo.brand} ${cardVeiculo.model} ${cardVeiculo.year}`.trim()
+                    : ''
+                  let enviados = 0
+                  sentCollabs.forEach(collabId => {
+                    const co = collaborators.find(c => c.id === collabId)
+                    const foneRaw = co?.phone?.replace(/\D/g, '') || ''
+                    if (!foneRaw) return
+                    const numero = foneRaw.startsWith('55') ? foneRaw : `55${foneRaw}`
+                    const msg = `Oi ${co.name}! Tenho um cliente precisando da peca: *${piece.name}*${veiculoStr ? ` para ${veiculoStr}` : ''}.\n\nVoce tem disponivel? Qual o valor? Aguardo retorno!`
+                    fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+                      body: JSON.stringify({ numero, customMessage: msg }),
+                    }).then(r => r.json()).then(r => console.log('collab msg:', co.name, r)).catch(e => console.error('collab msg err:', co.name, e))
+                    enviados++
+                  })
+                  if (enviados > 0) {
+                    addMessage(cardId, {
+                      sender: 'ai', type: 'text',
+                      content: `📲 Perguntei sobre *${piece.name}* para ${enviados} colaborador(es).`,
+                    })
+                  }
+                  setCollabMode(false)
+                }}
+                className="w-full py-2.5 text-sm rounded-xl font-bold text-white transition-all disabled:opacity-40 active:scale-95"
+                style={{ background: sentCollabs.length > 0 ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : '#94a3b8', boxShadow: sentCollabs.length > 0 ? '0 3px 10px rgba(37,99,235,0.3)' : 'none' }}>
+                {sentCollabs.length > 0 ? `📲 Enviar para ${sentCollabs.length} colaborador(es)` : 'Selecione ao menos 1'}
+              </button>
+            </div>
           </div>
         )}
 
