@@ -879,10 +879,25 @@ export default function CardModal({ card, onClose }) {
   const [reply, setReply] = useState('')
   const col = columns.find(c => c.id === card.column)
 
+  function sendWhatsApp(texto) {
+    if (!card.fromWhatsapp || !card.numero) return
+    fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+      body: JSON.stringify({ numero: card.numero, customMessage: texto }),
+    }).catch(() => {})
+  }
+
   function sendReply() {
     if (!reply.trim()) return
-    addMessage(card.id, { sender: 'system', type: 'text', content: reply })
+    addMessage(card.id, { sender: 'ai', type: 'text', content: reply })
+    sendWhatsApp(reply)
     setReply('')
+  }
+
+  function finalizarPedido() {
+    moveCard(card.id, 'finalizado')
+    onClose()
   }
 
   const piecesWithPrice = card.pieces.filter(p => p.price)
@@ -962,23 +977,44 @@ export default function CardModal({ card, onClose }) {
 
         {/* ── Aguardando Repasse banner ── */}
         {card.column === 'aguardando-repasse' && (
-          <div className="shrink-0 px-5 py-3 flex items-center justify-between gap-3"
+          <div className="shrink-0 px-4 py-3 space-y-2"
             style={{ background: 'linear-gradient(135deg,#fff1f2,#ffe4e6)', borderBottom: '1px solid #fecdd3' }}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: '#fda4af' }}>
-                💳
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💳</span>
+                <div>
+                  <p className="text-sm font-black text-rose-800">Aguardando Pagamento</p>
+                  <p className="text-[11px] text-rose-500">Confirme ao receber</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-black text-rose-800">Aguardando Pagamento do Cliente</p>
-                <p className="text-[11px] text-rose-500">Card bloqueado até confirmação do repasse</p>
-              </div>
+              <button
+                onClick={() => confirmCardPayment(card.id)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black text-white transition-all hover:opacity-90 shrink-0"
+                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 3px 10px rgba(22,163,74,0.35)' }}>
+                <CheckCircle size={13} /> Confirmar Pagamento
+              </button>
             </div>
-            <button
-              onClick={() => confirmCardPayment(card.id)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 shrink-0"
-              style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 3px 10px rgba(22,163,74,0.35)' }}>
-              <CheckCircle size={15} /> Confirmar Pagamento
-            </button>
+            {/* Lembrete de cobrança */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const peca = card.pieces.map(p => p.name).join(', ')
+                  const preco = card.pieces.find(p => p.price?.cash)?.price?.cash
+                  const msg = `Olá ${card.client?.name || 'cliente'}! Passando para lembrar que seu pedido da(s) peça(s) *${peca}* está aguardando pagamento${preco ? ` — R$ ${preco}` : ''}. Qualquer dúvida estamos à disposição!`
+                  sendWhatsApp(msg)
+                  addMessage(card.id, { sender: 'ai', type: 'text', content: msg })
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90"
+                style={{ background: '#fda4af', color: '#881337' }}>
+                💬 Enviar lembrete de pagamento
+              </button>
+              <button
+                onClick={finalizarPedido}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
+                style={{ background: 'linear-gradient(135deg,#475569,#334155)' }}>
+                🏁 Finalizar pedido
+              </button>
+            </div>
           </div>
         )}
 

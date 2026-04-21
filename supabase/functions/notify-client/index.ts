@@ -36,18 +36,26 @@ async function enviarMensagem(numero: string, texto: string) {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("OK", { status: 200 });
   if (req.method !== "POST") return new Response("OK", { status: 200 });
 
   try {
-    const { numero, nome, peca, status } = await req.json();
+    const { numero, nome, peca, status, customMessage } = await req.json();
 
-    if (!numero || !status || !MENSAGENS[status]) {
-      return new Response("status sem mensagem configurada", { status: 200 });
+    if (!numero) return new Response("numero obrigatorio", { status: 200 });
+
+    let texto = "";
+
+    if (customMessage) {
+      // Direct custom message from CRM chat
+      texto = customMessage;
+    } else if (status && MENSAGENS[status]) {
+      const nomeCliente = nome || "Cliente";
+      const pecaCliente = peca || "solicitada";
+      texto = MENSAGENS[status](nomeCliente, pecaCliente);
+    } else {
+      return new Response("mensagem nao configurada", { status: 200 });
     }
-
-    const nomeCliente = nome || "Cliente";
-    const pecaCliente = peca || "solicitada";
-    const texto = MENSAGENS[status](nomeCliente, pecaCliente);
 
     await enviarMensagem(numero, texto);
 
