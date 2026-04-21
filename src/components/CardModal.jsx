@@ -74,7 +74,7 @@ const PIECE_STATUS_CFG = {
   'delivered':     { label: 'Entregue',       bg: '#dcfce7', color: '#16a34a', dot: '#22c55e' },
 }
 
-function PieceRow({ piece, cardId, cardNumero, cardClientName }) {
+function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
   const { updatePieceStatus, updatePiece, collaborators, addMessage, can } = useApp()
   const s = PIECE_STATUS_CFG[piece.status] || PIECE_STATUS_CFG['searching']
   const [priceMode,      setPriceMode]      = useState(false)
@@ -448,7 +448,34 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName }) {
                 {sentCollabs.includes(co.id) && <span className="text-[11px] text-green-600 font-bold shrink-0">✓ Enviado</span>}
               </label>
             ))}
-            <button onClick={() => setCollabMode(false)} className="w-full py-2 text-sm rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors">Confirmar envio</button>
+            <button
+              disabled={sentCollabs.length === 0}
+              onClick={() => {
+                const veiculoStr = cardVeiculo
+                  ? `${cardVeiculo.brand} ${cardVeiculo.model} ${cardVeiculo.year}`.trim()
+                  : ''
+                sentCollabs.forEach(collabId => {
+                  const co = collaborators.find(c => c.id === collabId)
+                  if (!co?.phone) return
+                  const fone = co.phone.replace(/\D/g, '')
+                  const numFormatado = fone.startsWith('55') ? fone : `55${fone}`
+                  const msg = `Oi ${co.name}! Tenho um cliente precisando da peca: *${piece.name}*${veiculoStr ? ` para ${veiculoStr}` : ''}.\n\nVoce tem disponivel? Qual o valor? Aguardo retorno!`
+                  fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+                    body: JSON.stringify({ numero: numFormatado, customMessage: msg }),
+                  }).catch(() => {})
+                })
+                addMessage(cardId, {
+                  sender: 'ai', type: 'text',
+                  content: `📲 Mensagem enviada para ${sentCollabs.length} colaborador(es) perguntando sobre *${piece.name}*.`,
+                })
+                setCollabMode(false)
+              }}
+              className="w-full py-2.5 text-sm rounded-xl font-bold text-white transition-colors disabled:opacity-40"
+              style={{ background: sentCollabs.length > 0 ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : '#94a3b8' }}>
+              {sentCollabs.length > 0 ? `Enviar para ${sentCollabs.length} colaborador(es)` : 'Selecione colaboradores'}
+            </button>
           </div>
         )}
 
@@ -1050,7 +1077,7 @@ export default function CardModal({ card, onClose }) {
             <div className="p-4 space-y-3">
               {card.pieces.length === 0
                 ? <p className="text-center text-gray-400 text-sm py-10">Nenhuma peça registrada</p>
-                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} />)
+                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} cardVeiculo={card.vehicle} />)
               }
               {card.collaboratorsSent > 0 && (
                 <div className="bg-orange-50 rounded-2xl p-4 flex items-center gap-4 border border-orange-100">
