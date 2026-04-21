@@ -9,11 +9,9 @@ function autoMsg(text) {
 }
 
 function buildPriceMsg(pieceName, price) {
-  const lines = []
-  if (price.cash) lines.push(`💵 Dinheiro: R$ ${price.cash}`)
-  if (price.pix)  lines.push(`📲 Pix: R$ ${price.pix}`)
-  if (price.card) lines.push(`💳 Cartão: R$ ${price.card}`)
-  return `✅ Temos a peça que você procura!\n\n🔧 ${pieceName}\n\nFormas de pagamento:\n${lines.join('\n')}\n\nObservação: Desconto exclusivo para pagamento em dinheiro. Pix e cartão seguem o valor integral.\n\nAguardamos sua confirmação! 😊`
+  const valor = price.value || price.cash
+  if (!valor) return `✅ Temos a peça *${pieceName}*!\n\nEstamos finalizando o valor e já te passamos. Aguarde! 🙏`
+  return `✅ Temos a peça que você procura!\n\n🔧 *${pieceName}*\n💰 Valor: R$ ${parseFloat(valor).toFixed(2)}\n\nAguardamos sua confirmação para reservar a peça! 😊`
 }
 
 const STATUS_MSGS = {
@@ -217,12 +215,13 @@ export function AppProvider({ children, session, onLogout }) {
   const moveCard = useCallback((cardId, newColumn) => {
     setCards(prev => {
       const card = prev.find(c => c.id === cardId)
-      if (card?.fromWhatsapp && card?.numero && NOTIFICAR_STATUS.includes(newColumn)) {
+      const numeroNotif = card?.numero || card?.client?.phone?.replace(/\D/g, '')
+      if (numeroNotif && NOTIFICAR_STATUS.includes(newColumn)) {
         fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            numero: card.numero,
+            numero: numeroNotif,
             nome: card.client?.name,
             peca: card.pieces?.map(p => p.name).join(', '),
             status: newColumn,
@@ -286,28 +285,29 @@ export function AppProvider({ children, session, onLogout }) {
           atualizarPedido(cardId, { status: newColumn }).catch(() => {})
         }
 
-        if (c.fromWhatsapp && c.numero) {
+        const numeroNotif = c.numero || c.client?.phone?.replace(/\D/g, '')
+        if (numeroNotif) {
+          const notif = (body) => fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numero: numeroNotif, nome: c.client?.name, ...body }),
+          }).catch(() => {})
+
           // 2. Column-change notification
           if (newColumn !== c.column && NOTIFICAR_STATUS.includes(newColumn)) {
-            fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
-              body: JSON.stringify({
-                numero: c.numero,
-                nome: c.client?.name,
-                peca: updatedPieces.map(p => p.name).join(', '),
-                status: newColumn,
-              }),
-            }).catch(() => {})
+            notif({ peca: updatedPieces.map(p => p.name).join(', '), status: newColumn })
           }
-          // 3. Piece status notification (when column stays the same but piece changed)
+          // 3. Piece confirmed (found) — send without price
+          else if (pieceStatusChanged && status === 'found' && newColumn === c.column) {
+            notif({ customMessage: `✅ Boa notícia! Encontramos a peça *${piece.name}*.\n\nJá estamos verificando o valor e te retornamos em breve! 💪` })
+          }
+          // 4. Other piece status changes
           else if (pieceStatusChanged && newColumn === c.column && STATUS_MSGS[status]) {
-            const texto = STATUS_MSGS[status](piece.name)
-            fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
-              body: JSON.stringify({ numero: c.numero, customMessage: texto }),
-            }).catch(() => {})
+            notif({ customMessage: STATUS_MSGS[status](piece.name) })
+          }
+          // 5. Price set — send with value
+          if (price && (price.value || price.cash)) {
+            notif({ customMessage: buildPriceMsg(piece.name, price) })
           }
         }
       })
@@ -321,6 +321,7 @@ export function AppProvider({ children, session, onLogout }) {
   }, [])
 
   const addCard = useCallback(({ client, vehicle, pieces: pieceNames, welcomeMsg }) => {
+    const phone = client.phone?.replace(/\D/g, '') || ''
     const newCard = {
       id: `card-${Date.now()}`,
       column: 'novo-pedido',
@@ -337,6 +338,9 @@ export function AppProvider({ children, session, onLogout }) {
         : [],
       priority: 'normal',
       createdAt: new Date(),
+      numero: phone || null,
+      fromWhatsapp: !!phone,
+      channel: client.channel || null,
     }
     setCards(prev => [newCard, ...prev])
     return newCard

@@ -547,18 +547,18 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
           )
         )}
 
-        {/* Primary action buttons — Tenho / Verificar com colaboradores */}
+        {/* Primary action buttons — Confirmar / Verificar com colaboradores */}
         {!priceMode && !collabMode && !collabReply && (piece.status === 'not-found' || piece.status === 'searching') && (
           <div className="flex gap-2">
-            <button onClick={() => { updatePieceStatus(cardId, piece.id, 'waiting-price'); setPriceMode(true) }}
+            <button onClick={() => updatePieceStatus(cardId, piece.id, 'found')}
               className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 14px rgba(22,163,74,0.4)' }}>
-              ✅ Tenho
+              ✅ Confirmar Peça
             </button>
             <button onClick={clickVerificarColaboradores}
               className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
-              <Users size={14} /> Verificar com colaboradores
+              <Users size={14} /> Verificar colaboradores
             </button>
           </div>
         )}
