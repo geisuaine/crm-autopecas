@@ -626,8 +626,9 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
   )
 }
 
-function PaymentTotal({ pieces, addMessage, cardId }) {
+function PaymentTotal({ pieces, addMessage, cardId, card, moveCard }) {
   const [freight, setFreight] = useState(0)
+  const [enviado, setEnviado] = useState(false)
   const numericZones = FREIGHT_TABLE.filter(r => r.value !== null)
 
   const totals = { cash: 0, pix: 0, card: 0 }
@@ -649,8 +650,28 @@ function PaymentTotal({ pieces, addMessage, cardId }) {
     if (totals.pix)  lines.push(`📲 Pix: R$ ${(totals.pix + freight).toFixed(2)}`)
     if (totals.card) lines.push(`💳 Cartão: R$ ${(totals.card + freight).toFixed(2)}`)
     if (freight > 0) lines.push(`🚚 Frete: R$ ${freight},00`)
-    const msg = `Segue o orçamento:\n\n${pieces.filter(p=>p.price).map(p=>`• ${p.name}`).join('\n')}\n\n${lines.join('\n')}${freight > 0 ? '\n\n*(Frete já incluso nos valores acima)*' : '\n\nObservação: Desconto apenas no pagamento em dinheiro.'}`
+    const pecasList = pieces.filter(p => p.price).map(p => `• ${p.name}`).join('\n')
+    const obs = freight > 0 ? '\n\n*(Frete já incluso)*' : '\n\nDesconto apenas no pagamento em dinheiro.'
+    const msg = `Olá ${card?.client?.name || 'cliente'}! Segue o orçamento:\n\n${pecasList}\n\n${lines.join('\n')}${obs}`
+
+    // Add to local chat
     addMessage(cardId, { sender: 'ai', type: 'text', content: msg })
+
+    // Send WhatsApp to client
+    if (card?.fromWhatsapp && card?.numero) {
+      fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+        body: JSON.stringify({ numero: card.numero, customMessage: msg }),
+      }).catch(() => {})
+    }
+
+    // Move card to aguardando-repasse
+    if (card?.column !== 'aguardando-repasse' && card?.column !== 'finalizado') {
+      moveCard(cardId, 'aguardando-repasse')
+    }
+
+    setEnviado(true)
   }
 
   return (
@@ -674,11 +695,18 @@ function PaymentTotal({ pieces, addMessage, cardId }) {
           </div>
         ) : null)}
       </div>
-      <button onClick={sendToClient}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-90"
-        style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 12px rgba(22,163,74,0.35)' }}>
-        <MessageCircle size={15} /> Enviar Orçamento pro Cliente
-      </button>
+      {enviado ? (
+        <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 border border-blue-200">
+          <CheckCircle size={15} className="text-blue-500" />
+          <span className="text-sm font-black text-blue-700">Orçamento enviado! Aguardando pagamento.</span>
+        </div>
+      ) : (
+        <button onClick={sendToClient}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-90"
+          style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 12px rgba(22,163,74,0.35)' }}>
+          <MessageCircle size={15} /> Enviar Orçamento pro Cliente
+        </button>
+      )}
     </div>
   )
 }
@@ -1098,7 +1126,7 @@ export default function CardModal({ card, onClose }) {
 
         {/* Payment total bar */}
         {tab === 'pieces' && (
-          <PaymentTotal pieces={card.pieces} addMessage={addMessage} cardId={card.id} />
+          <PaymentTotal pieces={card.pieces} addMessage={addMessage} cardId={card.id} card={card} moveCard={moveCard} />
         )}
 
         {/* Reply bar — only for authorized users */}
