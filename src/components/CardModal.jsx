@@ -775,23 +775,23 @@ function InfoTab({ card }) {
             <p className="text-[11px] font-black text-green-600 uppercase tracking-wider mb-2">✅ Encontradas ({foundPieces.length})</p>
             {foundPieces.map(p => {
               const collab = collaborators.find(c => c.id === p.collaboratorId)
+              const preco  = p.price?.value || p.price?.cash
               return (
-                <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0 gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-800 truncate">{p.name}</p>
                     {collab && <p className="text-[11px] text-gray-400 mt-0.5">🤝 {collab.name}</p>}
-                    {p.price?.collaboratorCost && (
-                      <p className="text-[11px] text-orange-500 mt-0.5">Custo: R$ {p.price.collaboratorCost}</p>
-                    )}
                   </div>
-                  <div className="text-right shrink-0 ml-3">
-                    {(p.price?.value || p.price?.cash) && <p className="text-sm font-black text-green-700">R$ {p.price.value || p.price.cash}</p>}
-                    {(p.price?.value || p.price?.cash) && p.price?.collaboratorCost && (
-                      <p className="text-[11px] text-emerald-500 font-semibold">
-                        +R${((p.price.value || p.price.cash) - p.price.collaboratorCost).toFixed(0)} margem
+                  <div className="shrink-0 text-right">
+                    {preco
+                      ? <span className="text-base font-black text-green-700">R$ {parseFloat(preco).toFixed(2)}</span>
+                      : <span className="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">Sem preço</span>
+                    }
+                    {preco && p.price?.collaboratorCost && (
+                      <p className="text-[10px] text-emerald-500 font-semibold mt-0.5">
+                        +R$ {(parseFloat(preco) - p.price.collaboratorCost).toFixed(2)} margem
                       </p>
                     )}
-                    {!p.price && <span className="text-[11px] text-amber-600 font-semibold">Sem preço</span>}
                   </div>
                 </div>
               )
