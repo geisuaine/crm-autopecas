@@ -42,7 +42,7 @@ function buildOutOfHoursMsg(name, pieces, vehicle) {
   const veh = vehicle?.brand ? `${vehicle.brand} ${vehicle.model}${vehicle.year ? ' ' + vehicle.year : ''}` : null
   const now = new Date()
   const day = now.getDay()
-  const isWeekend = day === 0 || day === 6
+  const isWeekend = day === 0
   return `Olá, ${name.split(' ')[0]}! 👋
 
 Obrigado por entrar em contato com a *Auto Peças*!
