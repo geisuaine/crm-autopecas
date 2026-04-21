@@ -69,7 +69,10 @@ function Bubble({ msg }) {
 const SUPABASE_NOTIFY = 'https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client'
 function notifyClient(numero, body) {
   if (!numero) return
-  fetch(SUPABASE_NOTIFY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ numero, ...body }) }).catch(() => {})
+  const raw = String(numero).replace(/\D/g, '')
+  const num = raw.startsWith('55') ? raw : `55${raw}`
+  if (!/^\d{12,13}$/.test(num)) return
+  fetch(SUPABASE_NOTIFY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ numero: num, ...body }) }).catch(() => {})
 }
 
 function PieceQuickRow({ piece, idx, cardId, cardNumero, cardClientName, cardVeiculo }) {

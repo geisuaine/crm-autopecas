@@ -215,8 +215,9 @@ export function AppProvider({ children, session, onLogout }) {
   const moveCard = useCallback((cardId, newColumn) => {
     setCards(prev => {
       const card = prev.find(c => c.id === cardId)
-      const numeroNotif = card?.numero || card?.client?.phone?.replace(/\D/g, '')
-      if (numeroNotif && NOTIFICAR_STATUS.includes(newColumn)) {
+      const rawN = card?.numero || card?.client?.phone?.replace(/\D/g, '') || ''
+      const numeroNotif = rawN ? (rawN.startsWith('55') ? rawN : `55${rawN}`) : null
+      if (numeroNotif && /^\d{12,13}$/.test(numeroNotif) && NOTIFICAR_STATUS.includes(newColumn)) {
         fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -285,8 +286,9 @@ export function AppProvider({ children, session, onLogout }) {
           atualizarPedido(cardId, { status: newColumn }).catch(() => {})
         }
 
-        const numeroNotif = c.numero || c.client?.phone?.replace(/\D/g, '')
-        if (numeroNotif) {
+        const rawNotif = c.numero || c.client?.phone?.replace(/\D/g, '') || ''
+        const numeroNotif = rawNotif ? (rawNotif.startsWith('55') ? rawNotif : `55${rawNotif}`) : null
+        if (numeroNotif && /^\d{12,13}$/.test(numeroNotif)) {
           const notif = (body) => fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
