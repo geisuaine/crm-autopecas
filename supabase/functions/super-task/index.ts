@@ -340,79 +340,8 @@ Deno.serve(async (req: Request) => {
       }),
     ]);
 
-    // ── FORA DO HORÁRIO: extrai pedido, joga no painel e confirma ──
-    if (!isHorarioComercial()) {
-      // Chama IA só para extrair dados (peca, veiculo, nome) — sem conversa
-      const PROMPT_EXTRACAO = [
-        "Extraia dados do pedido da mensagem do cliente.",
-        "Retorne APENAS JSON valido:",
-        '{"peca": "<nome da peca ou null>", "veiculo": "<marca modelo ou null>", "ano": "<ano ou null>", "nome_cliente": "<nome ou null>"}',
-      ].join("\n");
-
-      const extraido = await chamarClaude(PROMPT_EXTRACAO, "Cliente enviou: " + mensagem);
-      const pecaExtraida = extraido?.peca || null;
-      const veiculoExtraido = extraido?.veiculo || null;
-      const anoExtraido = extraido?.ano || null;
-      const nomeExtraido = extraido?.nome_cliente || nomeCliente;
-
-      const ops: Promise<unknown>[] = [];
-
-      // Salvar cliente com dados extraídos
-      const upd: Record<string, string> = {};
-      if (nomeExtraido !== nomeCliente) upd.nome = nomeExtraido;
-      if (veiculoExtraido) upd.veiculo = veiculoExtraido;
-      if (anoExtraido) upd.ano = anoExtraido;
-      if (Object.keys(upd).length > 0) ops.push(salvarCliente(numero, nomeExtraido, upd));
-
-      // Criar pedido no painel se tiver peça
-      if (pecaExtraida) {
-        const { data: pedidoAtivo } = await supabase
-          .from("pedidos")
-          .select("id, peca")
-          .eq("numero", numero)
-          .in("status", ["novo-pedido", "em-busca", "peca-encontrada", "aguardando-preco"])
-          .order("criado_em", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (pedidoAtivo) {
-          if (!pedidoAtivo.peca.toLowerCase().includes(pecaExtraida.toLowerCase())) {
-            ops.push(supabase.from("pedidos").update({ peca: pedidoAtivo.peca + ", " + pecaExtraida }).eq("id", pedidoAtivo.id));
-          }
-        } else {
-          ops.push(supabase.from("pedidos").insert({
-            numero,
-            nome_cliente: nomeExtraido,
-            veiculo: veiculoExtraido || cliente?.veiculo || null,
-            peca: pecaExtraida,
-            status: "novo-pedido",
-            mensagem_original: mensagem,
-          }));
-        }
-      }
-
-      // Envia confirmação apenas 1x a cada 4h por cliente
-      const { data: msgRecente } = await supabase
-        .from("mensagens_whatsapp")
-        .select("id")
-        .eq("numero", numero)
-        .eq("de_mim", true)
-        .ilike("mensagem", "%painel de atendimento%")
-        .gte("criado_em", new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString())
-        .limit(1)
-        .maybeSingle();
-
-      if (!msgRecente) {
-        const txtFora = msgForaHorario(nomeExtraido, pecaExtraida, veiculoExtraido, anoExtraido);
-        ops.push(enviarMensagem(numeroEnvio, txtFora));
-        ops.push(supabase.from("mensagens_whatsapp").insert({
-          numero, nome: "Marcelo", mensagem: txtFora, tipo: "text", de_mim: true, dados_raw: null,
-        }));
-      }
-
-      await Promise.all(ops);
-      return new Response("fora-horario", { status: 200 });
-    }
+    // ── FORA DO HORÁRIO: atende normalmente mas finaliza com aviso de horário ──
+    const foraHorario = !isHorarioComercial();
 
     let perfilCliente = "";
     if (cliente?.nome || cliente?.veiculo) {
@@ -424,7 +353,26 @@ Deno.serve(async (req: Request) => {
     }
 
     const ehPrimeiro = historico === "";
+
+    const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const mmdd2 = String(now.getUTCMonth() + 1).padStart(2, "0") + "-" + String(now.getUTCDate()).padStart(2, "0");
+    const feriado2 = FERIADOS_BR.includes(mmdd2);
+    const domingo2 = now.getUTCDay() === 0;
+    const motivoFora = feriado2 ? "hoje e feriado (horario: 8h-13h)" : domingo2 ? "hoje e domingo (fechado)" : "estamos fora do horario comercial (seg-sex 8h-17h, sab 8h-12h30)";
+
+    const avisoForaHorario = foraHorario ? [
+      "",
+      "SITUACAO ATUAL: FORA DO HORARIO COMERCIAL (" + motivoFora + ").",
+      "COMPORTAMENTO FORA DO HORARIO:",
+      "Faca o atendimento completo normalmente: pergunte modelo e ano, qual peca, se e mecanica/eletrica peca foto ou numero da peca, pergunte se precisa de mais alguma peca.",
+      "Quando o cliente confirmar que nao precisa de mais nada (ou quando voce tiver todas as infos), finalize com:",
+      "'Anotei tudo certinho! Seu pedido ja foi pro nosso painel. Vamos verificar a disponibilidade assim que iniciarmos o expediente e te retornamos em breve!'",
+      "NAO mencione horario de atendimento a nao ser que o cliente pergunte.",
+      "NAO diga que vai verificar 'agora' ou 'em breve hoje'. Diga 'no proximo expediente' ou 'assim que iniciarmos o expediente'.",
+    ].join("\n") : "";
+
     const contexto = SYSTEM_PROMPT
+      + avisoForaHorario
       + perfilCliente
       + (ehPrimeiro ? "\n\nOBS: Este e o PRIMEIRO contato deste cliente." : "")
       + historico;
