@@ -214,7 +214,30 @@ Deno.serve(async (req: Request) => {
     if (remoteJid.includes("@g.us")) return new Response("ignored", { status: 200 });
     if (remoteJid.includes("@broadcast")) return new Response("ignored", { status: 200 });
 
-    const numero = remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "");
+    // Deduplicar pelo ID único da mensagem do WhatsApp
+    const wamid = key?.id || "";
+    if (wamid) {
+      const { data: existe } = await supabase
+        .from("mensagens_whatsapp")
+        .select("id")
+        .eq("wamid", wamid)
+        .limit(1)
+        .maybeSingle();
+      if (existe) return new Response("duplicate", { status: 200 });
+    }
+
+    // Extract clean number: strip JID suffix and device index (e.g. "5521999001111:0@lid" → "5521999001111")
+    const rawNumero = remoteJid
+      .replace(/@s\.whatsapp\.net$/, "")
+      .replace(/@c\.us$/, "")
+      .replace(/@lid$/, "")
+      .replace(/:\d+$/, "")   // remove :0 :1 etc (linked device index)
+      .trim();
+
+    // Ensure Brazil country code
+    const numero = rawNumero.startsWith("55") ? rawNumero : "55" + rawNumero;
+
+    // For @lid JIDs Evolution API needs the full JID to reply correctly
     const numeroEnvio = remoteJid.includes("@lid") ? remoteJid : numero;
     const pushName = data?.pushName || "";
     const tipo = data?.messageType || "text";
@@ -263,7 +286,7 @@ Deno.serve(async (req: Request) => {
     await Promise.all([
       salvarCliente(numero, nomeCliente, {}),
       supabase.from("mensagens_whatsapp").insert({
-        numero, nome: nomeCliente, mensagem, tipo, de_mim: false, dados_raw: body,
+        numero, nome: nomeCliente, mensagem, tipo, de_mim: false, dados_raw: body, wamid: wamid || null,
       }),
     ]);
 
@@ -302,14 +325,28 @@ Deno.serve(async (req: Request) => {
       ops.push(salvarCliente(numero, updates.nome || nomeCliente, updates));
     }
     if (pedido && peca) {
-      ops.push(supabase.from("pedidos").insert({
-        numero,
-        nome_cliente: updates.nome || nomeCliente,
-        veiculo: veiculo || cliente?.veiculo || null,
-        peca,
-        status: "novo-pedido",
-        mensagem_original: mensagem,
-      }));
+      const { data: pedidoAtivo } = await supabase
+        .from("pedidos")
+        .select("id, peca")
+        .eq("numero", numero)
+        .in("status", ["novo-pedido", "em-busca", "peca-encontrada", "aguardando-preco"])
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pedidoAtivo) {
+        const pecasAtualizadas = pedidoAtivo.peca + ", " + peca;
+        ops.push(supabase.from("pedidos").update({ peca: pecasAtualizadas }).eq("id", pedidoAtivo.id));
+      } else {
+        ops.push(supabase.from("pedidos").insert({
+          numero,
+          nome_cliente: updates.nome || nomeCliente,
+          veiculo: veiculo || cliente?.veiculo || null,
+          peca,
+          status: "novo-pedido",
+          mensagem_original: mensagem,
+        }));
+      }
     }
     if (resposta) {
       ops.push(enviarMensagem(numeroEnvio, resposta));
