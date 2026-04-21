@@ -262,11 +262,18 @@ export function AppProvider({ children, session, onLogout }) {
         ? 'peca-encontrada'
         : c.column
 
+      const pieceStatusChanged = piece.status !== status
+
       // Side effects after render (notify + DB sync)
-      if (newColumn !== c.column) {
-        Promise.resolve().then(() => {
+      Promise.resolve().then(() => {
+        // 1. DB sync when column changes
+        if (newColumn !== c.column) {
           atualizarPedido(cardId, { status: newColumn }).catch(() => {})
-          if (c.fromWhatsapp && c.numero && NOTIFICAR_STATUS.includes(newColumn)) {
+        }
+
+        if (c.fromWhatsapp && c.numero) {
+          // 2. Column-change notification
+          if (newColumn !== c.column && NOTIFICAR_STATUS.includes(newColumn)) {
             fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
@@ -278,8 +285,17 @@ export function AppProvider({ children, session, onLogout }) {
               }),
             }).catch(() => {})
           }
-        })
-      }
+          // 3. Piece status notification (when column stays the same but piece changed)
+          else if (pieceStatusChanged && newColumn === c.column && STATUS_MSGS[status]) {
+            const texto = STATUS_MSGS[status](piece.name)
+            fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+              body: JSON.stringify({ numero: c.numero, customMessage: texto }),
+            }).catch(() => {})
+          }
+        }
+      })
 
       return prev.map(card =>
         card.id === cardId
