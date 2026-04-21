@@ -321,7 +321,8 @@ export function AppProvider({ children, session, onLogout }) {
   }, [])
 
   const addCard = useCallback(({ client, vehicle, pieces: pieceNames, welcomeMsg }) => {
-    const phone = client.phone?.replace(/\D/g, '') || ''
+    const phoneRaw = client.phone?.replace(/\D/g, '') || ''
+    const phone = phoneRaw ? (phoneRaw.startsWith('55') ? phoneRaw : `55${phoneRaw}`) : ''
     const newCard = {
       id: `card-${Date.now()}`,
       column: 'novo-pedido',
