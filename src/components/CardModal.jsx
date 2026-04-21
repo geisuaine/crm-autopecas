@@ -66,6 +66,184 @@ function Bubble({ msg }) {
   )
 }
 
+const SUPABASE_NOTIFY = 'https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client'
+function notifyClient(numero, body) {
+  if (!numero) return
+  fetch(SUPABASE_NOTIFY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ numero, ...body }) }).catch(() => {})
+}
+
+function PieceQuickRow({ piece, idx, cardId, cardNumero, cardClientName, cardVeiculo }) {
+  const { updatePieceStatus, updatePiece, collaborators, moveCard } = useApp()
+  const [showCollab,  setShowCollab]  = useState(false)
+  const [showPrice,   setShowPrice]   = useState(false)
+  const [priceVal,    setPriceVal]    = useState('')
+  const [collabCost,  setCollabCost]  = useState('')
+  const [expanded,    setExpanded]    = useState(false)
+
+  const isFound    = piece.status === 'found' || piece.status === 'waiting-price' || piece.status === 'delivered'
+  const isNotFound = piece.status === 'not-found'
+  const collab     = collaborators.find(c => c.id === piece.collaboratorId)
+
+  function confirmTenho() {
+    updatePieceStatus(cardId, piece.id, 'found')
+    notifyClient(cardNumero, {
+      nome: cardClientName,
+      customMessage: `✅ Boa notícia, ${(cardClientName || 'Cliente').split(' ')[0]}! Encontramos a peça *${piece.name}*.\n\nJá estamos verificando o valor e te retornamos em breve! 💪`,
+    })
+  }
+
+  function confirmNaoTem() {
+    updatePieceStatus(cardId, piece.id, 'not-found')
+    moveCard(cardId, 'em-busca')
+    notifyClient(cardNumero, {
+      nome: cardClientName,
+      customMessage: `Olá, ${(cardClientName || 'Cliente').split(' ')[0]}! 🔍\n\nNo momento não tenho a peça *${piece.name}* no estoque, mas já estou verificando com nossos colaboradores.\n\nAssim que tiver resposta, te aviso! ⏳`,
+    })
+  }
+
+  function salvarPreco() {
+    if (!priceVal) return
+    updatePieceStatus(cardId, piece.id, 'found', {
+      value: parseFloat(priceVal),
+      cash:  parseFloat(priceVal),
+      collaboratorCost: collabCost ? parseFloat(collabCost) : null,
+    })
+    notifyClient(cardNumero, {
+      nome: cardClientName,
+      customMessage: `✅ Temos a peça *${piece.name}*!\n\n💰 Valor: R$ ${parseFloat(priceVal).toFixed(2)}\n\nAguardamos sua confirmação para reservar! 😊`,
+    })
+    setShowPrice(false)
+    setPriceVal('')
+    setCollabCost('')
+  }
+
+  function assignCollab(collabId) {
+    updatePiece(cardId, piece.id, { collaboratorId: collabId })
+    setShowCollab(false)
+  }
+
+  const statusColor = isFound ? '#16a34a' : isNotFound ? '#dc2626' : '#d97706'
+  const statusLabel = isFound ? 'Encontrada' : isNotFound ? 'Não encontrada' : 'Buscando'
+
+  return (
+    <div className="rounded-2xl overflow-hidden bg-white border border-gray-100" style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      {/* Main row */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        {/* Index + name */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0"
+            style={{ background: statusColor }}>{idx + 1}</span>
+          <p className="font-bold text-sm text-gray-800 truncate">{piece.name}</p>
+          {piece.price?.value && (
+            <span className="text-xs font-black text-green-700 bg-green-50 px-2 py-0.5 rounded-full shrink-0">
+              R$ {parseFloat(piece.price.value).toFixed(2)}
+            </span>
+          )}
+        </div>
+
+        {/* 3 action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Tenho */}
+          <button
+            onClick={confirmTenho}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all active:scale-95"
+            style={isFound
+              ? { background: '#16a34a', color: '#fff' }
+              : { background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0' }}>
+            ✅ Tenho
+          </button>
+
+          {/* Não tem */}
+          <button
+            onClick={confirmNaoTem}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all active:scale-95"
+            style={isNotFound
+              ? { background: '#dc2626', color: '#fff' }
+              : { background: '#fef2f2', color: '#dc2626', border: '1.5px solid #fecaca' }}>
+            ❌ Não
+          </button>
+
+          {/* Colaborador */}
+          <button
+            onClick={() => setShowCollab(v => !v)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all active:scale-95"
+            style={collab
+              ? { background: '#2563eb', color: '#fff' }
+              : { background: '#eff6ff', color: '#2563eb', border: '1.5px solid #bfdbfe' }}>
+            👤 {collab ? collab.name.split(' ')[0] : 'Colab'}
+          </button>
+
+          {/* Expand */}
+          <button onClick={() => setExpanded(v => !v)}
+            className="w-7 h-7 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-colors shrink-0">
+            <ChevronDown size={13} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Collaborator picker */}
+      {showCollab && (
+        <div className="border-t border-gray-100 divide-y divide-gray-50">
+          {collaborators.map(co => (
+            <button key={co.id} onClick={() => assignCollab(co.id)}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left transition-colors">
+              <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-[10px] font-black text-blue-700 shrink-0">{co.name[0]}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 truncate">{co.name}</p>
+                <p className="text-[10px] text-gray-400">{co.store}</p>
+              </div>
+              {piece.collaboratorId === co.id && <CheckCircle size={12} className="text-blue-500 shrink-0" />}
+            </button>
+          ))}
+          <button onClick={() => setShowCollab(false)} className="w-full py-2 text-xs text-gray-400 text-center hover:bg-gray-50">fechar</button>
+        </div>
+      )}
+
+      {/* Price form */}
+      {(isFound || showPrice) && !showCollab && (
+        <div className="border-t border-gray-100 px-3 py-2.5 bg-gray-50">
+          {!showPrice && !piece.price?.value ? (
+            <button onClick={() => setShowPrice(true)}
+              className="w-full text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl py-2 hover:bg-amber-100 transition-colors">
+              💰 Inserir valor da peça
+            </button>
+          ) : showPrice ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold text-gray-500 mb-1">Valor p/ cliente</p>
+                  <input type="number" placeholder="R$ 0,00" value={priceVal} onChange={e => setPriceVal(e.target.value)}
+                    className="w-full text-sm rounded-xl px-3 py-2 border border-gray-200 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-green-200" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold text-gray-500 mb-1">Custo colaborador</p>
+                  <input type="number" placeholder="R$ 0,00" value={collabCost} onChange={e => setCollabCost(e.target.value)}
+                    className="w-full text-sm rounded-xl px-3 py-2 border border-gray-200 bg-white font-bold focus:outline-none focus:ring-2 focus:ring-orange-200" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={salvarPreco} disabled={!priceVal}
+                  className="flex-1 py-2 rounded-xl text-sm font-black text-white disabled:opacity-40 transition-colors"
+                  style={{ background: '#16a34a' }}>
+                  ✓ Salvar e enviar ao cliente
+                </button>
+                <button onClick={() => setShowPrice(false)} className="px-4 py-2 rounded-xl text-xs text-gray-500 bg-gray-200">×</button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="border-t border-gray-100">
+          <PieceRow piece={piece} cardId={cardId} cardNumero={cardNumero} cardClientName={cardClientName} cardVeiculo={cardVeiculo} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PIECE_STATUS_CFG = {
   'found':         { label: 'Disponível',     bg: '#dcfce7', color: '#16a34a', dot: '#22c55e' },
   'not-found':     { label: 'Não Encontrada', bg: '#fee2e2', color: '#dc2626', dot: '#ef4444' },
@@ -1125,22 +1303,21 @@ export default function CardModal({ card, onClose }) {
           )}
 
           {tab === 'pieces' && (
-            <div className="p-4 space-y-3">
+            <div className="p-3 space-y-2">
               {card.pieces.length === 0
                 ? <p className="text-center text-gray-400 text-sm py-10">Nenhuma peça registrada</p>
-                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} cardVeiculo={card.vehicle} cardChannel={card.channel} />)
+                : card.pieces.map((p, idx) => (
+                  <PieceQuickRow
+                    key={p.id}
+                    piece={p}
+                    idx={idx}
+                    cardId={card.id}
+                    cardNumero={card.numero}
+                    cardClientName={card.client?.name}
+                    cardVeiculo={card.vehicle}
+                  />
+                ))
               }
-              {card.collaboratorsSent > 0 && (
-                <div className="bg-orange-50 rounded-2xl p-4 flex items-center gap-4 border border-orange-100">
-                  <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0">
-                    <Users size={18} className="text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-orange-700">{card.collaboratorsSent} colaboradores notificados</p>
-                    <p className="text-xs text-orange-500 mt-0.5">Aguardando resposta dos parceiros</p>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
