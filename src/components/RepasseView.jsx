@@ -41,7 +41,9 @@ export default function RepasseView() {
   const [vales,     setVales]     = useState([])
   const [valeForm,  setValeForm]  = useState({ personId: '', value: '', desc: '' })
   const [showVale,  setShowVale]  = useState(false)
+  const [valeError, setValeError] = useState('')
 
+  const [showQr,         setShowQr]         = useState(null)  // personId with QR open
   const [showPayPanel,   setShowPayPanel]   = useState(false)
   const [collabPaidLocal, setCollabPaidLocal] = useState({}) // manual overrides
   const isPiecePaid = (pieceId) => paidCollabPieces?.has(pieceId) || !!collabPaidLocal[pieceId]
@@ -150,10 +152,12 @@ export default function RepasseView() {
   }
 
   function addVale() {
-    if (!valeForm.personId || !valeForm.value) return
+    if (!valeForm.personId) { setValeError('Selecione um funcionário'); return }
+    if (!valeForm.value || parseFloat(valeForm.value) <= 0) { setValeError('Informe o valor do vale'); return }
     const person = people.find(p => p.id === valeForm.personId)
     setVales(prev => [...prev, { id: Date.now(), person: person?.name, personId: valeForm.personId, value: parseFloat(valeForm.value), desc: valeForm.desc, date: new Date() }])
     setValeForm({ personId: '', value: '', desc: '' })
+    setValeError('')
     setShowVale(false)
   }
 
@@ -420,7 +424,27 @@ export default function RepasseView() {
                       style={{ background: sendPixTo === person.id ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)', color: sendPixTo === person.id ? '#4ade80' : '#9ca3af' }}>
                       <MessageCircle size={10} /> Enviar ao cliente
                     </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setShowQr(v => v === person.id ? null : person.id) }}
+                      className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-all"
+                      style={{ background: showQr === person.id ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)', color: showQr === person.id ? '#4ade80' : '#9ca3af' }}>
+                      QR
+                    </button>
                   </div>
+
+                  {/* QR Code do Pix */}
+                  {showQr === person.id && (
+                    <div className="mt-2 pt-2 border-t border-green-500/20 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <p className="text-[10px] font-black text-green-400 uppercase tracking-wider">QR Code — Chave Pix</p>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(person.pix)}&bgcolor=1a1a2e&color=4ade80&qzone=2`}
+                        alt="QR Code Pix"
+                        className="rounded-xl border border-green-500/30"
+                        style={{ width: 140, height: 140 }}
+                      />
+                      <p className="text-[10px] text-gray-500 text-center">Mostre na tela ao cliente</p>
+                    </div>
+                  )}
 
                   {/* Send pix to client panel */}
                   {sendPixTo === person.id && (
@@ -791,7 +815,7 @@ export default function RepasseView() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-black text-white uppercase tracking-wider">💸 Vale de Funcionário</p>
-          <button onClick={() => setShowVale(!showVale)}
+          <button onClick={() => { setShowVale(v => !v); setValeError('') }}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition-all"
             style={{ background: 'rgba(220,38,38,0.2)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)' }}>
             <Plus size={13} /> Lançar Vale
@@ -821,9 +845,12 @@ export default function RepasseView() {
                   className="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:outline-none" />
               </div>
             </div>
+            {valeError && (
+              <p className="mt-2 text-xs font-bold text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{valeError}</p>
+            )}
             <div className="flex gap-2 mt-3">
               <button onClick={addVale} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-colors" style={{ background: '#dc2626' }}>Lançar Vale</button>
-              <button onClick={() => setShowVale(false)} className="px-4 py-2.5 text-sm rounded-xl font-semibold text-gray-400 transition-colors" style={{ background: 'rgba(255,255,255,0.06)' }}>Cancelar</button>
+              <button onClick={() => { setShowVale(false); setValeError('') }} className="px-4 py-2.5 text-sm rounded-xl font-semibold text-gray-400 transition-colors" style={{ background: 'rgba(255,255,255,0.06)' }}>Cancelar</button>
             </div>
           </div>
         )}

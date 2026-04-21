@@ -187,6 +187,10 @@ export function AppProvider({ children, session, onLogout }) {
     }))
   }
 
+  function addUser(user) {
+    setUsers(prev => [...prev, { ...user, permissions: new Set(user.permissions || []) }])
+  }
+
   const notifications = [
     { id: 'n1', text: 'Maria Santos aguardando há 40 min',    type: 'urgent',    time: new Date() },
     { id: 'n2', text: 'Peça encontrada para Paulo Mendes',    type: 'info',      time: new Date() },
@@ -402,7 +406,7 @@ export function AppProvider({ children, session, onLogout }) {
       addPiecesToCard,
       confirmCardPayment,
       paidCollabPieces,
-      users, currentUser: supabaseUser ?? currentUser, currentUserId, setCurrentUserId, can, updateUserPermissions, ALL_PERMISSIONS,
+      users, addUser, currentUser: supabaseUser ?? currentUser, currentUserId, setCurrentUserId, can, updateUserPermissions, ALL_PERMISSIONS,
       disparosQueue, setDisparosQueue, adicionarAoDisparo,
       onLogout,
     }}>
