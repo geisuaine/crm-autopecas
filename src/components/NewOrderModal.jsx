@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { X, Phone, Plus, Trash2, Car, User, AlertCircle, CheckCircle, ArrowRight, Store, PhoneCall } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
+const FERIADOS = [
+  '01-01','04-21','05-01','09-07','10-12','11-02','11-15','12-25'
+]
+
+function isFeriado(date) {
+  const mm = String(date.getMonth() + 1).padStart(2,'0')
+  const dd = String(date.getDate()).padStart(2,'0')
+  return FERIADOS.includes(`${mm}-${dd}`)
+}
+
 function isBusinessHours() {
   const now  = new Date()
   const day  = now.getDay()
@@ -9,6 +19,7 @@ function isBusinessHours() {
   const min  = now.getMinutes()
   const time = hour + min / 60
   if (day === 0) return false
+  if (isFeriado(now)) return time >= 8 && time < 13
   if (day >= 1 && day <= 5) return time >= 8 && time < 17
   if (day === 6) return time >= 8 && time < 12.5
   return false
@@ -43,6 +54,7 @@ function buildOutOfHoursMsg(name, pieces, vehicle) {
   const now = new Date()
   const day = now.getDay()
   const isWeekend = day === 0
+  const feriado   = isFeriado(now)
   return `Olá, ${name.split(' ')[0]}! 👋
 
 Obrigado por entrar em contato com a *Auto Peças*!
@@ -50,11 +62,12 @@ Obrigado por entrar em contato com a *Auto Peças*!
 Recebemos o seu pedido:
 ${pieceList}${veh ? `\n🚗 Veículo: ${veh}` : ''}
 
-${isWeekend ? '📅 Estamos fora do expediente no momento.' : '⏰ Estamos fora do horário comercial no momento.'}
+${feriado ? '📅 Hoje é feriado, estamos com horário reduzido.' : isWeekend ? '📅 Estamos fora do expediente no momento.' : '⏰ Estamos fora do horário comercial no momento.'}
 
 🕐 *Horário de atendimento:*
 • Segunda a Sexta: 8h às 17h
 • Sábado: 8h às 12h30
+• Feriados: 8h às 13h
 
 ✅ Seu pedido *já foi para o nosso painel de atendimento!*
 
