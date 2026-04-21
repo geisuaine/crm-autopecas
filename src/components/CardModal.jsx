@@ -83,7 +83,7 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
   const [replyCollabId,  setReplyCollabId]  = useState('')
   const [replyCost,      setReplyCost]      = useState('')
   const [replyNote,      setReplyNote]      = useState('')
-  const [prices,         setPrices]         = useState({ cash: '', pix: '', card: '', collaboratorCost: '' })
+  const [prices,         setPrices]         = useState({ value: '', collaboratorCost: '' })
   const [selectedCollab, setSelectedCollab] = useState(piece.collaboratorId || '')
   const [sentCollabs, setSentCollabs] = useState([])
   const [storePhoto,  setStorePhoto]  = useState(piece.storePhoto  || null)
@@ -190,11 +190,11 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
   }
 
   function savePrice() {
-    if (!prices.cash && !prices.pix && !prices.card) return
+    if (!prices.value) return
     updatePieceStatus(cardId, piece.id, 'found', {
-      cash: parseFloat(prices.cash) || null,
-      pix:  parseFloat(prices.pix)  || null,
-      card: parseFloat(prices.card) || null,
+      value: parseFloat(prices.value),
+      cash:  parseFloat(prices.value) || null,
+      pix:   parseFloat(prices.value) || null,
       collaboratorCost: parseFloat(prices.collaboratorCost) || null,
       collaboratorId: selectedCollab || null,
     })
@@ -241,15 +241,11 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
       </div>
 
       <div className="px-4 py-3 space-y-3">
-        {/* Prices */}
-        {piece.price && (
-          <div className="grid grid-cols-3 gap-2">
-            {[['💵','Dinheiro','cash','#f0fdf4','#15803d'],['📲','Pix','pix','#eff6ff','#1d4ed8'],['💳','Cartão','card','#f5f3ff','#6d28d9']].map(([ico,lbl,key,bg,clr]) => piece.price[key] ? (
-              <div key={key} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: bg }}>
-                <p className="text-base font-black" style={{ color: clr }}>R$ {piece.price[key]}</p>
-                <p className="text-[11px] mt-0.5 font-medium" style={{ color: clr, opacity: 0.75 }}>{ico} {lbl}</p>
-              </div>
-            ) : null)}
+        {/* Price */}
+        {piece.price && (piece.price.value || piece.price.cash) && (
+          <div className="rounded-xl p-2.5 text-center" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            <p className="text-lg font-black text-green-700">R$ {piece.price.value || piece.price.cash}</p>
+            <p className="text-[11px] mt-0.5 font-medium text-green-600">💵 Valor da peça</p>
           </div>
         )}
 
@@ -403,25 +399,21 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo }) {
               </div>
             </div>
 
-            {/* Block 2 — Client repasse */}
+            {/* Block 2 — Client price */}
             <div className="p-3 rounded-xl space-y-2.5" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-              <p className="text-[11px] font-black text-green-700 uppercase tracking-wider">💰 Preço de Repasse ao Cliente</p>
-              <div className="grid grid-cols-3 gap-2">
-                {[['💵','Dinheiro','cash'],['📲','Pix','pix'],['💳','Cartão','card']].map(([ico,lbl,key]) => (
-                  <div key={key}>
-                    <p className="text-[11px] text-green-600 mb-1 font-semibold">{ico} {lbl}</p>
-                    <input type="number" placeholder="R$" value={prices[key]}
-                      onChange={e => setPrices(p => ({ ...p, [key]: e.target.value }))}
-                      className="w-full text-sm rounded-lg px-2 py-2 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-200 bg-white border border-green-200 font-bold" />
-                  </div>
-                ))}
+              <p className="text-[11px] font-black text-green-700 uppercase tracking-wider">💰 Valor da Peça para o Cliente</p>
+              <div>
+                <p className="text-[11px] text-green-600 mb-1 font-semibold">💵 Valor (R$)</p>
+                <input type="number" placeholder="R$ valor da peça" value={prices.value}
+                  onChange={e => setPrices(p => ({ ...p, value: e.target.value }))}
+                  className="w-full text-sm rounded-lg px-3 py-2.5 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-200 bg-white border border-green-200 font-bold text-lg" />
               </div>
 
-              {prices.collaboratorCost && prices.cash && (
+              {prices.collaboratorCost && prices.value && (
                 <div className="flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-green-200">
-                  <p className="text-[11px] text-gray-500 font-semibold">Margem no dinheiro:</p>
+                  <p className="text-[11px] text-gray-500 font-semibold">Margem:</p>
                   <p className="text-sm font-black text-green-700">
-                    R$ {(parseFloat(prices.cash) - parseFloat(prices.collaboratorCost)).toFixed(2)}
+                    R$ {(parseFloat(prices.value) - parseFloat(prices.collaboratorCost)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -657,28 +649,22 @@ function PaymentTotal({ pieces, addMessage, cardId, card, moveCard }) {
   const [enviado, setEnviado] = useState(false)
   const numericZones = FREIGHT_TABLE.filter(r => r.value !== null)
 
-  const totals = { cash: 0, pix: 0, card: 0 }
+  let totalValue = 0
   let hasPrices = false
   pieces.forEach(p => {
     if (p.price) {
-      hasPrices = true
-      if (p.price.cash) totals.cash += p.price.cash
-      if (p.price.pix)  totals.pix  += p.price.pix
-      if (p.price.card) totals.card += p.price.card
+      const v = p.price.value || p.price.cash || 0
+      if (v) { hasPrices = true; totalValue += v }
     }
   })
 
   if (!hasPrices) return null
 
   function sendToClient() {
-    const lines = []
-    if (totals.cash) lines.push(`💵 Dinheiro: R$ ${(totals.cash + freight).toFixed(2)}`)
-    if (totals.pix)  lines.push(`📲 Pix: R$ ${(totals.pix + freight).toFixed(2)}`)
-    if (totals.card) lines.push(`💳 Cartão: R$ ${(totals.card + freight).toFixed(2)}`)
-    if (freight > 0) lines.push(`🚚 Frete: R$ ${freight},00`)
+    const total = totalValue + freight
     const pecasList = pieces.filter(p => p.price).map(p => `• ${p.name}`).join('\n')
-    const obs = freight > 0 ? '\n\n*(Frete já incluso)*' : '\n\nDesconto apenas no pagamento em dinheiro.'
-    const msg = `Olá ${card?.client?.name || 'cliente'}! Segue o orçamento:\n\n${pecasList}\n\n${lines.join('\n')}${obs}`
+    const freteInfo = freight > 0 ? `\n🚚 Frete: R$ ${freight},00` : ''
+    const msg = `Olá ${card?.client?.name || 'cliente'}! Segue o orçamento:\n\n${pecasList}\n\n💵 Total: R$ ${total.toFixed(2)}${freteInfo}`
 
     // Add to local chat
     addMessage(cardId, { sender: 'ai', type: 'text', content: msg })
@@ -713,13 +699,23 @@ function PaymentTotal({ pieces, addMessage, cardId, card, moveCard }) {
           </select>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {[['💵','Dinheiro',totals.cash,'#15803d','#f0fdf4'],['📲','Pix',totals.pix,'#1d4ed8','#eff6ff'],['💳','Cartão',totals.card,'#6d28d9','#f5f3ff']].map(([ico,lbl,val,clr,bg]) => val > 0 ? (
-          <div key={lbl} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: bg }}>
-            <p className="text-[10px] font-semibold mb-0.5" style={{ color: clr, opacity: 0.7 }}>{ico} {lbl}</p>
-            <p className="text-lg font-black" style={{ color: clr }}>R$ {(val + freight).toFixed(2)}</p>
+      <div className="flex items-center justify-center gap-4 mb-3 px-2 py-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+        <div className="text-center">
+          <p className="text-[10px] font-semibold text-green-600 mb-0.5">💵 Valor das peças</p>
+          <p className="text-xl font-black text-green-700">R$ {totalValue.toFixed(2)}</p>
+        </div>
+        {freight > 0 && <>
+          <p className="text-gray-300 text-lg">+</p>
+          <div className="text-center">
+            <p className="text-[10px] font-semibold text-gray-500 mb-0.5">🚚 Frete</p>
+            <p className="text-lg font-black text-gray-600">R$ {freight.toFixed(2)}</p>
           </div>
-        ) : null)}
+          <p className="text-gray-300 text-lg">=</p>
+          <div className="text-center">
+            <p className="text-[10px] font-semibold text-green-700 mb-0.5">Total</p>
+            <p className="text-xl font-black text-green-800">R$ {(totalValue + freight).toFixed(2)}</p>
+          </div>
+        </>}
       </div>
       {enviado ? (
         <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 border border-blue-200">
@@ -750,9 +746,8 @@ function InfoTab({ card }) {
   const collabIds = [...new Set(card.pieces.filter(p => p.collaboratorId).map(p => p.collaboratorId))]
   const involvedCollabs = collabIds.map(id => collaborators.find(c => c.id === id)).filter(Boolean)
 
-  const totalCash = foundPieces.reduce((s, p) => s + (p.price?.cash || 0), 0)
-  const totalPix  = foundPieces.reduce((s, p) => s + (p.price?.pix  || 0), 0)
-  const totalCost = foundPieces.reduce((s, p) => s + (p.price?.collaboratorCost || 0), 0)
+  const totalValue = foundPieces.reduce((s, p) => s + (p.price?.value || p.price?.cash || 0), 0)
+  const totalCost  = foundPieces.reduce((s, p) => s + (p.price?.collaboratorCost || 0), 0)
 
   const sellers   = employees.filter(e => e.role === 'Vendedor' || e.role === 'Consultora')
   const stockists = employees.filter(e => e.role === 'Estoquista')
@@ -790,10 +785,10 @@ function InfoTab({ card }) {
                     )}
                   </div>
                   <div className="text-right shrink-0 ml-3">
-                    {p.price?.cash && <p className="text-sm font-black text-green-700">R$ {p.price.cash}</p>}
-                    {p.price?.cash && p.price?.collaboratorCost && (
+                    {(p.price?.value || p.price?.cash) && <p className="text-sm font-black text-green-700">R$ {p.price.value || p.price.cash}</p>}
+                    {(p.price?.value || p.price?.cash) && p.price?.collaboratorCost && (
                       <p className="text-[11px] text-emerald-500 font-semibold">
-                        +R${(p.price.cash - p.price.collaboratorCost).toFixed(0)} margem
+                        +R${((p.price.value || p.price.cash) - p.price.collaboratorCost).toFixed(0)} margem
                       </p>
                     )}
                     {!p.price && <span className="text-[11px] text-amber-600 font-semibold">Sem preço</span>}
@@ -822,16 +817,18 @@ function InfoTab({ card }) {
         )}
 
         {/* Totals */}
-        {totalCash > 0 && (
+        {totalValue > 0 && (
           <div className="px-4 py-3 bg-green-50 border-t border-green-100">
             <p className="text-[11px] font-black text-green-700 uppercase tracking-wider mb-2">Total cliente pagará</p>
-            <div className="flex gap-3">
-              {totalCash > 0 && <div><p className="text-lg font-black text-green-700">R$ {totalCash.toFixed(2)}</p><p className="text-[10px] text-green-500">💵 Dinheiro</p></div>}
-              {totalPix  > 0 && <div><p className="text-lg font-black text-blue-700">R$ {totalPix.toFixed(2)}</p><p className="text-[10px] text-blue-500">📲 Pix</p></div>}
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-lg font-black text-green-700">R$ {totalValue.toFixed(2)}</p>
+                <p className="text-[10px] text-green-500">💵 Valor das peças</p>
+              </div>
               {totalCost > 0 && (
                 <div className="ml-auto text-right">
                   <p className="text-sm font-black text-orange-600">-R$ {totalCost.toFixed(2)}</p>
-                  <p className="text-[10px] text-orange-400">Custo total</p>
+                  <p className="text-[10px] text-orange-400">Custo colaborador</p>
                 </div>
               )}
             </div>
@@ -1080,7 +1077,7 @@ export default function CardModal({ card, onClose }) {
               <button
                 onClick={() => {
                   const peca = card.pieces.map(p => p.name).join(', ')
-                  const preco = card.pieces.find(p => p.price?.cash)?.price?.cash
+                  const preco = card.pieces.find(p => p.price?.value || p.price?.cash)?.price?.value || card.pieces.find(p => p.price?.cash)?.price?.cash
                   const msg = `Olá ${card.client?.name || 'cliente'}! Passando para lembrar que seu pedido da(s) peça(s) *${peca}* está aguardando pagamento${preco ? ` — R$ ${preco}` : ''}. Qualquer dúvida estamos à disposição!`
                   sendWhatsApp(msg)
                   addMessage(card.id, { sender: 'ai', type: 'text', content: msg })
