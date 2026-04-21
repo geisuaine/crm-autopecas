@@ -30,6 +30,8 @@ export default function PieceCard({ card, column, onClick }) {
 
   const hasPrice = mainPiece?.price
   const allFound = card.pieces.length > 0 && card.pieces.every(p => p.status === 'found' || p.status === 'delivered')
+  const isCheckingCollabs = card.pieces.some(p => p.status === 'not-found') && card.column === 'em-busca'
+  const hasCollabAssigned = card.pieces.some(p => p.collaboratorId)
 
   return (
     <div
@@ -98,6 +100,22 @@ export default function PieceCard({ card, column, onClick }) {
           {card.client.phone ? card.client.phone : card.client.name}
         </p>
       </div>
+
+      {/* Verificando colaboradores strip */}
+      {isCheckingCollabs && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5"
+          style={{ background: '#fff7ed', borderTop: '1px solid #fed7aa' }}>
+          <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shrink-0" />
+          <p className="text-[11px] font-bold text-orange-600">Verificando com colaboradores...</p>
+        </div>
+      )}
+      {hasCollabAssigned && !isCheckingCollabs && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5"
+          style={{ background: '#f0fdf4', borderTop: '1px solid #bbf7d0' }}>
+          <Users size={10} className="text-green-600 shrink-0" />
+          <p className="text-[11px] font-bold text-green-600">Colaborador localizado</p>
+        </div>
+      )}
 
       {/* Bottom bar */}
       <div

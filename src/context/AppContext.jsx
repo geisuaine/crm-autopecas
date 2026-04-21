@@ -209,6 +209,7 @@ export function AppProvider({ children, session, onLogout }) {
 
   // Updates piece status and auto-sends message to client
   const WAITING_PAYMENT_COLS = ['novo-pedido','em-busca','peca-encontrada','aguardando-preco']
+  const EARLY_COLS = ['novo-pedido', 'em-busca', 'aguardando-preco']
 
   const updatePieceStatus = useCallback((cardId, pieceId, status, price = null) => {
     setCards(prev => prev.map(c => {
@@ -229,9 +230,13 @@ export function AppProvider({ children, session, onLogout }) {
         msg = autoMsg(STATUS_MSGS[status](piece.name))
       }
 
-      // When a price is set, move card to aguardando-repasse
+      // Column auto-advance logic:
+      // 1. Price set → aguardando-repasse
+      // 2. Piece found/waiting-price → peca-encontrada (if still in early column)
       const newColumn = price && WAITING_PAYMENT_COLS.includes(c.column)
         ? 'aguardando-repasse'
+        : (status === 'waiting-price' || status === 'found') && EARLY_COLS.includes(c.column)
+        ? 'peca-encontrada'
         : c.column
 
       return {
@@ -241,6 +246,10 @@ export function AppProvider({ children, session, onLogout }) {
         messages: msg ? [...c.messages, msg] : c.messages,
       }
     }))
+    // Sync new column to DB if applicable
+    if (status === 'waiting-price' || status === 'found') {
+      atualizarPedido(cardId, { status: 'peca-encontrada' }).catch(() => {})
+    }
   }, [])
 
   const addCard = useCallback(({ client, vehicle, pieces: pieceNames, welcomeMsg }) => {

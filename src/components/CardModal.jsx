@@ -74,23 +74,70 @@ const PIECE_STATUS_CFG = {
   'delivered':     { label: 'Entregue',       bg: '#dcfce7', color: '#16a34a', dot: '#22c55e' },
 }
 
-function PieceRow({ piece, cardId }) {
-  const { updatePieceStatus, updatePiece, collaborators, addMessage } = useApp()
+function PieceRow({ piece, cardId, cardNumero, cardClientName }) {
+  const { updatePieceStatus, updatePiece, collaborators, addMessage, can } = useApp()
   const s = PIECE_STATUS_CFG[piece.status] || PIECE_STATUS_CFG['searching']
   const [priceMode,      setPriceMode]      = useState(false)
   const [collabMode,     setCollabMode]     = useState(false)
-  const [collabReply,    setCollabReply]    = useState(false)  // register collaborator response
+  const [collabReply,    setCollabReply]    = useState(false)
   const [replyCollabId,  setReplyCollabId]  = useState('')
   const [replyCost,      setReplyCost]      = useState('')
   const [replyNote,      setReplyNote]      = useState('')
   const [prices,         setPrices]         = useState({ cash: '', pix: '', card: '', collaboratorCost: '' })
   const [selectedCollab, setSelectedCollab] = useState(piece.collaboratorId || '')
   const [sentCollabs, setSentCollabs] = useState([])
+  const [storePhoto,  setStorePhoto]  = useState(piece.storePhoto  || null)
+  const [collabPhoto, setCollabPhoto] = useState(piece.collabPhoto || null)
 
   const photoRequested = piece.photoRequested || false
   const photoConfirmed = piece.photoConfirmed || false
   const [quickCollab, setQuickCollab] = useState(false)
   const collab = collaborators.find(c => c.id === (piece.collaboratorId || selectedCollab))
+  const canApproveMedia = can('approveMedia')
+
+  function handlePhotoUpload(type, e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const dataUrl = ev.target.result
+      if (type === 'store') { setStorePhoto(dataUrl); updatePiece(cardId, piece.id, { storePhoto: dataUrl }) }
+      else { setCollabPhoto(dataUrl); updatePiece(cardId, piece.id, { collabPhoto: dataUrl }) }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function sendPhotoToClient(photoDataUrl, caption) {
+    if (!cardNumero) return
+    // Sends via Evolution API through the notify-client function
+    fetch(`https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/send-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+      body: JSON.stringify({ numero: cardNumero, imageDataUrl: photoDataUrl, caption }),
+    }).catch(() => {})
+    addMessage(cardId, { sender: 'ai', type: 'photo', content: `📷 Foto enviada: ${caption}`, imageDataUrl: photoDataUrl })
+  }
+
+  function clickVerificarColaboradores() {
+    // Send WhatsApp to client immediately
+    if (cardNumero) {
+      fetch(`https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
+        body: JSON.stringify({
+          numero: cardNumero,
+          nome: cardClientName || 'Cliente',
+          peca: piece.name,
+          status: 'verificando-colaboradores',
+        }),
+      }).catch(() => {})
+    }
+    addMessage(cardId, {
+      sender: 'ai', type: 'text',
+      content: `📲 Mensagem enviada ao cliente: "No momento não tenho a peça *${piece.name}* no estoque, mas já estou verificando com os colaboradores. Assim que tiver resposta, já te aviso!"`,
+    })
+    setCollabMode(true)
+  }
 
   function assignCollab(collabId) {
     updatePiece(cardId, piece.id, { collaboratorId: collabId })
@@ -400,16 +447,87 @@ function PieceRow({ piece, cardId }) {
         {/* Primary action buttons — Tenho / Verificar com colaboradores */}
         {!priceMode && !collabMode && !collabReply && (piece.status === 'not-found' || piece.status === 'searching') && (
           <div className="flex gap-2">
-            <button onClick={() => setPriceMode(true)}
+            <button onClick={() => { updatePieceStatus(cardId, piece.id, 'waiting-price'); setPriceMode(true) }}
               className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 14px rgba(22,163,74,0.4)' }}>
               ✅ Tenho
             </button>
-            <button onClick={() => setCollabMode(true)}
+            <button onClick={clickVerificarColaboradores}
               className="flex-1 flex items-center justify-center gap-2 text-sm py-3 rounded-2xl font-black text-white transition-all hover:opacity-90 active:scale-95"
               style={{ background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}>
               <Users size={14} /> Verificar com colaboradores
             </button>
+          </div>
+        )}
+
+        {/* Photo sections — visible when piece is found or waiting-price */}
+        {(piece.status === 'found' || piece.status === 'waiting-price' || piece.status === 'delivered') && (
+          <div className="space-y-3 pt-1">
+            {/* Store photo */}
+            <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50">
+                <p className="text-[11px] font-black text-gray-600 uppercase tracking-wider">📷 Foto do produto — Loja</p>
+                <label className="text-[11px] font-bold text-blue-600 cursor-pointer hover:underline">
+                  {storePhoto ? 'Trocar' : '+ Adicionar'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload('store', e)} />
+                </label>
+              </div>
+              {storePhoto ? (
+                <div className="relative">
+                  <img src={storePhoto} alt="foto loja" className="w-full max-h-40 object-cover" />
+                  {canApproveMedia ? (
+                    <button onClick={() => sendPhotoToClient(storePhoto, `Foto da peça: ${piece.name}`)}
+                      className="absolute bottom-2 right-2 flex items-center gap-1.5 text-xs font-black text-white px-3 py-1.5 rounded-xl transition-all hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                      <Send size={11} /> Enviar ao cliente
+                    </button>
+                  ) : (
+                    <div className="absolute bottom-2 right-2 text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded-lg">
+                      Aguard. aprovação
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center py-6 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <Camera size={24} className="text-gray-300 mb-1" />
+                  <p className="text-xs text-gray-400">Clique para adicionar foto</p>
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload('store', e)} />
+                </label>
+              )}
+            </div>
+
+            {/* Collaborator photo */}
+            <div className="rounded-2xl overflow-hidden border border-orange-100 bg-white">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-orange-50">
+                <p className="text-[11px] font-black text-orange-600 uppercase tracking-wider">📷 Foto do produto — Colaborador</p>
+                <label className="text-[11px] font-bold text-orange-500 cursor-pointer hover:underline">
+                  {collabPhoto ? 'Trocar' : '+ Adicionar'}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload('collab', e)} />
+                </label>
+              </div>
+              {collabPhoto ? (
+                <div className="relative">
+                  <img src={collabPhoto} alt="foto colaborador" className="w-full max-h-40 object-cover" />
+                  {canApproveMedia ? (
+                    <button onClick={() => sendPhotoToClient(collabPhoto, `Foto da peça: ${piece.name}`)}
+                      className="absolute bottom-2 right-2 flex items-center gap-1.5 text-xs font-black text-white px-3 py-1.5 rounded-xl transition-all hover:opacity-90"
+                      style={{ background: 'linear-gradient(135deg,#ea580c,#c2410c)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                      <Send size={11} /> Enviar ao cliente
+                    </button>
+                  ) : (
+                    <div className="absolute bottom-2 right-2 text-xs font-bold bg-amber-500 text-white px-2 py-1 rounded-lg">
+                      Aguard. aprovação
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center py-6 cursor-pointer hover:bg-orange-50 transition-colors">
+                  <Camera size={24} className="text-orange-200 mb-1" />
+                  <p className="text-xs text-orange-300">Clique para adicionar foto do colaborador</p>
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload('collab', e)} />
+                </label>
+              )}
+            </div>
           </div>
         )}
         {!priceMode && !collabMode && (piece.status === 'waiting-price' || (piece.status === 'found' && !piece.price)) && (
@@ -838,7 +956,7 @@ export default function CardModal({ card, onClose }) {
             <div className="p-4 space-y-3">
               {card.pieces.length === 0
                 ? <p className="text-center text-gray-400 text-sm py-10">Nenhuma peça registrada</p>
-                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} />)
+                : card.pieces.map(p => <PieceRow key={p.id} piece={p} cardId={card.id} cardNumero={card.numero} cardClientName={card.client?.name} />)
               }
               {card.collaboratorsSent > 0 && (
                 <div className="bg-orange-50 rounded-2xl p-4 flex items-center gap-4 border border-orange-100">

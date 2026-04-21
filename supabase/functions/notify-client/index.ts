@@ -6,7 +6,10 @@ const INSTANCE = "geisa";
 
 const MENSAGENS: Record<string, (nome: string, peca: string) => string> = {
   "em-busca": (nome, peca) =>
-    `Ola ${nome}, tudo bem?\n\nJa estamos buscando sua peca: ${peca}.\n\nAssim que localizar, te aviso aqui. Pode aguardar.`,
+    `Ola ${nome}, tudo bem?\n\nNo momento nao tenho a peca *${peca}* no estoque, mas ja estou verificando com os colaboradores.\n\nAssim que tiver resposta, ja te aviso! Pode aguardar.`,
+
+  "verificando-colaboradores": (nome, peca) =>
+    `Ola ${nome}!\n\nNo momento nao tenho a peca *${peca}* disponivel, mas ja estou verificando com os colaboradores.\n\nAssim que eles me responderem, ja te dou retorno. Obrigado pela paciencia!`,
 
   "peca-encontrada": (nome, peca) =>
     `Boa noticia, ${nome}!\n\nLocalizamos sua peca: ${peca}.\n\nEstou verificando o valor e ja te passo certinho.`,
