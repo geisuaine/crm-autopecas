@@ -1154,18 +1154,36 @@ export default function CardModal({ card, onClose }) {
 
         {/* Reply bar — only for authorized users */}
         {tab === 'chat' && canChat && (
-          <div className="bg-white border-t border-gray-100 px-4 py-3 flex items-center gap-2 shrink-0">
-            <input
-              value={reply}
-              onChange={e => setReply(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendReply()}
-              placeholder="Enviar mensagem ao cliente via WhatsApp..."
-              className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-400 text-gray-800"
-            />
-            <button onClick={sendReply}
-              className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0">
-              <Send size={16} className="text-white" />
-            </button>
+          <div className="bg-white border-t border-gray-100 shrink-0">
+            {/* Quick replies */}
+            <div className="px-3 pt-2.5 pb-1 flex flex-wrap gap-1.5">
+              {[
+                { label: '📦 Estado da peça',    msg: 'Vou ver qual eu tenho e já te passo! 😊' },
+                { label: '✅ É original?',        msg: 'Sim, é original! ✅' },
+                { label: '⏳ Aguardando retorno', msg: `Olá ${card.client?.name?.split(' ')[0] || 'cliente'}! Ainda estou verificando com nossos colaboradores. Em breve te retorno! 🙏` },
+                { label: '🚚 Prazo de entrega',   msg: 'O prazo de entrega depende da sua região. Assim que confirmar o pedido te passo o prazo certinho! 📦' },
+              ].map(({ label, msg }) => (
+                <button key={label}
+                  onClick={() => { addMessage(card.id, { sender: 'ai', type: 'text', content: msg }); sendWhatsApp(msg) }}
+                  className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all hover:opacity-80 active:scale-95"
+                  style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="px-4 pb-3 flex items-center gap-2">
+              <input
+                value={reply}
+                onChange={e => setReply(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendReply()}
+                placeholder="Enviar mensagem ao cliente via WhatsApp..."
+                className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 placeholder:text-gray-400 text-gray-800"
+              />
+              <button onClick={sendReply}
+                className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0">
+                <Send size={16} className="text-white" />
+              </button>
+            </div>
           </div>
         )}
       </div>
