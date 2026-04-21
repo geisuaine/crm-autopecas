@@ -10,7 +10,7 @@ function isBusinessHours() {
   const time = hour + min / 60
   if (day === 0) return false
   if (day >= 1 && day <= 5) return time >= 8 && time < 17
-  if (day === 6) return time >= 8 && time < 12
+  if (day === 6) return time >= 8 && time < 12.5
   return false
 }
 
@@ -54,7 +54,7 @@ ${isWeekend ? '📅 Estamos fora do expediente no momento.' : '⏰ Estamos fora 
 
 🕐 *Horário de atendimento:*
 • Segunda a Sexta: 8h às 17h
-• Sábado: 8h às 12h
+• Sábado: 8h às 12h30
 
 ✅ Seu pedido *já foi para o nosso painel de atendimento!*
 
