@@ -19,10 +19,15 @@ const SYSTEM_PROMPT = [
   "NUNCA: pareca robo, repita perguntas, peca info que o cliente ja enviou, responda de forma engessada, fale formal ou carinhoso demais, use emoji ou simbolos nas mensagens.",
   "SEMPRE: fale como vendedor experiente, seja profissional, humano, objetivo, natural. Passe confianca. Evite mensagens longas.",
   "",
-  "REGRA ABSOLUTA - DISPONIBILIDADE:",
-  "NUNCA confirme que tem uma peca. NUNCA diga 'temos', 'tem sim', 'tenho', 'esta disponivel'.",
-  "SEMPRE diga que vai verificar primeiro. So confirme depois que o atendente humano realmente checar.",
-  "Mesmo que o cliente pergunte direto 'tem porta branca?' — responda: 'Vou verificar para voce. Me confirma: qual o modelo e ano do seu carro?'",
+  "REGRA ABSOLUTA - DISPONIBILIDADE (NUNCA VIOLE ISSO):",
+  "PROIBIDO usar qualquer dessas frases: 'temos sim', 'tem sim', 'trabalhamos com', 'a gente trabalha com', 'tenho sim', 'esta disponivel', 'pode ser que sim', 'geralmente temos', 'costumamos ter', 'sim temos', 'claro que temos'.",
+  "SEMPRE use: 'Vou verificar para voce', 'Deixa eu checar', 'Ja vejo para voce', 'Vou checar no estoque'.",
+  "",
+  "EXEMPLOS — O QUE NAO FAZER vs O QUE FAZER:",
+  "Cliente: 'Tem farol de Agile?' → ERRADO: 'Sim, trabalhamos com farol de Agile!' → CERTO: 'Vou verificar para voce. E dianteiro ou traseiro?'",
+  "Cliente: 'Tem radiador de C3?' → ERRADO: 'Sim, temos radiador de C3!' → CERTO: 'Vou checar. Me confirma o ano do seu C3?'",
+  "Cliente: 'Voce tem capo?' → ERRADO: 'Temos sim!' → CERTO: 'Vou verificar para voce!'",
+  "Cliente: 'tem ou nao tem?' → ERRADO: 'Temos sim!' → CERTO: 'Preciso verificar no estoque para confirmar. Ja vejo e te retorno.'",
   "",
   "MEMORIA E CONTINUIDADE:",
   "Se o historico mostrar que o cliente ja se identificou, use o nome dele naturalmente.",
@@ -30,10 +35,22 @@ const SYSTEM_PROMPT = [
   "Se voltar sobre mesma peca: 'Ola [nome]. Sobre a peca que voce tinha consultado, vou verificar para voce novamente.'",
   "NUNCA perguntar nome, carro ou dados que ja estao no historico. NUNCA reiniciar conversa do zero.",
   "",
-  "ABERTURA INICIAL (apenas quando nao ha historico e cliente nao se identificou):",
-  "Ola, tudo bem? Meu nome e Marcelo. Estou aqui para te ajudar com a peca que voce precisa. Antes de começarmos, pode me informar seu nome para eu registrar seu atendimento aqui certinho?",
+  "FLUXO OBRIGATORIO DE ATENDIMENTO:",
+  "PASSO 1 — PRIMEIRO CONTATO: Pergunte APENAS modelo e ano do carro. Nada mais.",
+  "Exemplo: 'Ola! Qual o modelo e ano do seu carro? Assim ja verifico certinho para voce.'",
   "",
-  "DEPOIS DO NOME: 'Prazer, [nome]. Agora me passa: modelo do carro, ano, motor e qual peca voce precisa. Assim verifico certinho para voce.'",
+  "PASSO 2 — APOS RECEBER MODELO/ANO: Pergunte qual peca precisa.",
+  "Exemplo: 'Anotado! E qual peca voce precisa para o [veiculo]?'",
+  "",
+  "PASSO 3 — APOS RECEBER A PECA: Pergunte se precisa de mais alguma peca (bom vendedor sempre pergunta).",
+  "Exemplo: 'Anotado. Precisa de mais alguma peca? Verifico tudo de uma vez para voce.'",
+  "",
+  "PASSO 4 — APOS CLIENTE CONFIRMAR QUE NAO PRECISA DE MAIS NADA: Informe que o pedido foi registrado.",
+  "Exemplo: 'Perfeito! Seu pedido ja foi pro nosso painel de atendimento. Vamos verificar a disponibilidade e te retornamos em breve!'",
+  "",
+  "SE O CLIENTE JA ENVIOU MODELO/ANO NA PRIMEIRA MENSAGEM: Pule o passo 1 e va direto para o passo 2 ou 3.",
+  "SE O CLIENTE JA ENVIOU A PECA NA PRIMEIRA MENSAGEM: Pule os passos 1 e 2 e va para o passo 3.",
+  "NUNCA repita perguntas que o cliente ja respondeu.",
   "",
   "TIPO DE PECA — COMO PERGUNTAR:",
   "",
@@ -202,6 +219,42 @@ async function enviarMensagem(numero: string, texto: string) {
   });
 }
 
+const FERIADOS_BR = ["01-01","04-21","05-01","09-07","10-12","11-02","11-15","12-25"];
+
+function isHorarioComercial(): boolean {
+  // Brazil UTC-3
+  const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const day = now.getUTCDay(); // 0=Dom, 6=Sab
+  const hour = now.getUTCHours();
+  const min = now.getUTCMinutes();
+  const time = hour + min / 60;
+  const mmdd = String(now.getUTCMonth() + 1).padStart(2, "0") + "-" + String(now.getUTCDate()).padStart(2, "0");
+  const feriado = FERIADOS_BR.includes(mmdd);
+  if (day === 0) return false;                          // Domingo: fechado
+  if (feriado) return time >= 8 && time < 13;           // Feriado: 8h-13h
+  if (day >= 1 && day <= 5) return time >= 8 && time < 17; // Seg-Sex: 8h-17h
+  if (day === 6) return time >= 8 && time < 12.5;       // Sábado: 8h-12h30
+  return false;
+}
+
+function msgForaHorario(nome: string, peca: string | null, veiculo: string | null, ano: string | null): string {
+  const now = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const day = now.getUTCDay();
+  const mmdd = String(now.getUTCMonth() + 1).padStart(2, "0") + "-" + String(now.getUTCDate()).padStart(2, "0");
+  const feriado = FERIADOS_BR.includes(mmdd);
+  const firstName = nome.split(" ")[0];
+  const motivo = feriado
+    ? "📅 Hoje é feriado, estamos com horário reduzido."
+    : day === 0
+    ? "📅 Estamos fora do expediente no momento."
+    : "⏰ Estamos fora do horário comercial no momento.";
+
+  const veiculoStr = veiculo ? `\n🚗 Veículo: ${veiculo}${ano ? " " + ano : ""}` : "";
+  const pecaStr = peca ? `\nRecebemos o seu pedido:\n• ${peca}${veiculoStr}\n\n` : "";
+
+  return `Olá, ${firstName}! 👋\n\nObrigado por entrar em contato com a *Auto Peças*!\n\n${pecaStr}${motivo}\n\n🕐 *Horário de atendimento:*\n• Segunda a Sexta: 8h às 17h\n• Sábado: 8h às 12h30\n• Feriados: 8h às 13h\n\n✅ Seu pedido *já foi para o nosso painel de atendimento!*\n\nAssim que iniciarmos o expediente entraremos em contato. Caso não tenhamos todas as peças disponíveis, verificaremos com nossos colaboradores! 💪`;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("OK", { status: 200 });
   try {
@@ -226,16 +279,13 @@ Deno.serve(async (req: Request) => {
       if (existe) return new Response("duplicate", { status: 200 });
     }
 
-    // Extract clean number: strip JID suffix and device index (e.g. "5521999001111:0@lid" → "5521999001111")
-    const rawNumero = remoteJid
-      .replace(/@s\.whatsapp\.net$/, "")
-      .replace(/@c\.us$/, "")
-      .replace(/@lid$/, "")
-      .replace(/:\d+$/, "")   // remove :0 :1 etc (linked device index)
+    // Extract clean number (strip JID suffix + device index like :0 from @lid format)
+    const numero = remoteJid
+      .replace("@s.whatsapp.net", "")
+      .replace("@c.us", "")
+      .replace("@lid", "")
+      .replace(/:\d+$/, "")
       .trim();
-
-    // Ensure Brazil country code
-    const numero = rawNumero.startsWith("55") ? rawNumero : "55" + rawNumero;
 
     // For @lid JIDs Evolution API needs the full JID to reply correctly
     const numeroEnvio = remoteJid.includes("@lid") ? remoteJid : numero;
@@ -290,6 +340,80 @@ Deno.serve(async (req: Request) => {
       }),
     ]);
 
+    // ── FORA DO HORÁRIO: extrai pedido, joga no painel e confirma ──
+    if (!isHorarioComercial()) {
+      // Chama IA só para extrair dados (peca, veiculo, nome) — sem conversa
+      const PROMPT_EXTRACAO = [
+        "Extraia dados do pedido da mensagem do cliente.",
+        "Retorne APENAS JSON valido:",
+        '{"peca": "<nome da peca ou null>", "veiculo": "<marca modelo ou null>", "ano": "<ano ou null>", "nome_cliente": "<nome ou null>"}',
+      ].join("\n");
+
+      const extraido = await chamarClaude(PROMPT_EXTRACAO, "Cliente enviou: " + mensagem);
+      const pecaExtraida = extraido?.peca || null;
+      const veiculoExtraido = extraido?.veiculo || null;
+      const anoExtraido = extraido?.ano || null;
+      const nomeExtraido = extraido?.nome_cliente || nomeCliente;
+
+      const ops: Promise<unknown>[] = [];
+
+      // Salvar cliente com dados extraídos
+      const upd: Record<string, string> = {};
+      if (nomeExtraido !== nomeCliente) upd.nome = nomeExtraido;
+      if (veiculoExtraido) upd.veiculo = veiculoExtraido;
+      if (anoExtraido) upd.ano = anoExtraido;
+      if (Object.keys(upd).length > 0) ops.push(salvarCliente(numero, nomeExtraido, upd));
+
+      // Criar pedido no painel se tiver peça
+      if (pecaExtraida) {
+        const { data: pedidoAtivo } = await supabase
+          .from("pedidos")
+          .select("id, peca")
+          .eq("numero", numero)
+          .in("status", ["novo-pedido", "em-busca", "peca-encontrada", "aguardando-preco"])
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (pedidoAtivo) {
+          if (!pedidoAtivo.peca.toLowerCase().includes(pecaExtraida.toLowerCase())) {
+            ops.push(supabase.from("pedidos").update({ peca: pedidoAtivo.peca + ", " + pecaExtraida }).eq("id", pedidoAtivo.id));
+          }
+        } else {
+          ops.push(supabase.from("pedidos").insert({
+            numero,
+            nome_cliente: nomeExtraido,
+            veiculo: veiculoExtraido || cliente?.veiculo || null,
+            peca: pecaExtraida,
+            status: "novo-pedido",
+            mensagem_original: mensagem,
+          }));
+        }
+      }
+
+      // Envia confirmação apenas 1x a cada 4h por cliente
+      const { data: msgRecente } = await supabase
+        .from("mensagens_whatsapp")
+        .select("id")
+        .eq("numero", numero)
+        .eq("de_mim", true)
+        .ilike("mensagem", "%painel de atendimento%")
+        .gte("criado_em", new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (!msgRecente) {
+        const txtFora = msgForaHorario(nomeExtraido, pecaExtraida, veiculoExtraido, anoExtraido);
+        ops.push(enviarMensagem(numeroEnvio, txtFora));
+        ops.push(supabase.from("mensagens_whatsapp").insert({
+          numero, nome: "Marcelo", mensagem: txtFora, tipo: "text", de_mim: true, dados_raw: null,
+        }));
+      }
+
+      await Promise.all(ops);
+      return new Response("fora-horario", { status: 200 });
+    }
+
     let perfilCliente = "";
     if (cliente?.nome || cliente?.veiculo) {
       perfilCliente = "\n\nPERFIL DO CLIENTE:\n";
@@ -324,7 +448,9 @@ Deno.serve(async (req: Request) => {
     if (Object.keys(updates).length > 0) {
       ops.push(salvarCliente(numero, updates.nome || nomeCliente, updates));
     }
-    if (pedido && peca) {
+
+    // Criar pedido quando a IA identificar a peça (pedido=true OU peca detectada)
+    if (peca) {
       const { data: pedidoAtivo } = await supabase
         .from("pedidos")
         .select("id, peca")
@@ -335,8 +461,11 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (pedidoAtivo) {
-        const pecasAtualizadas = pedidoAtivo.peca + ", " + peca;
-        ops.push(supabase.from("pedidos").update({ peca: pecasAtualizadas }).eq("id", pedidoAtivo.id));
+        // Adicionar peça ao pedido existente se ainda não estiver listada
+        if (!pedidoAtivo.peca.toLowerCase().includes(peca.toLowerCase())) {
+          const pecasAtualizadas = pedidoAtivo.peca + ", " + peca;
+          ops.push(supabase.from("pedidos").update({ peca: pecasAtualizadas }).eq("id", pedidoAtivo.id));
+        }
       } else {
         ops.push(supabase.from("pedidos").insert({
           numero,
@@ -348,6 +477,7 @@ Deno.serve(async (req: Request) => {
         }));
       }
     }
+
     if (resposta) {
       ops.push(enviarMensagem(numeroEnvio, resposta));
       ops.push(supabase.from("mensagens_whatsapp").insert({

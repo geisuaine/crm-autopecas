@@ -132,7 +132,7 @@ export function AppProvider({ children, session, onLogout }) {
     return novo
   }, [])
 
-  // Carregar pedidos do Supabase + Realtime
+  // Carregar pedidos do Supabase + Realtime + polling fallback
   useEffect(() => {
     buscarPedidos().then(pedidos => {
       setCards(pedidos.map(pedidoParaCard))
@@ -141,14 +141,29 @@ export function AppProvider({ children, session, onLogout }) {
     const channel = supabase
       .channel('pedidos-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos' }, ({ new: p }) => {
-        setCards(prev => [pedidoParaCard(p), ...prev])
+        setCards(prev => {
+          if (prev.some(c => c.id === p.id)) return prev
+          return [pedidoParaCard(p), ...prev]
+        })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, ({ new: p }) => {
         setCards(prev => prev.map(c => c.id === p.id ? { ...pedidoParaCard(p), messages: c.messages } : c))
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    // Polling a cada 30s como fallback caso Realtime falhe
+    const poll = setInterval(() => {
+      buscarPedidos().then(pedidos => {
+        setCards(prev => {
+          const ids = new Set(prev.map(c => c.id))
+          const novos = pedidos.filter(p => !ids.has(p.id)).map(pedidoParaCard)
+          if (novos.length === 0) return prev
+          return [...novos, ...prev]
+        })
+      })
+    }, 10000)
+
+    return () => { supabase.removeChannel(channel); clearInterval(poll) }
   }, [])
 
   // Carregar mensagens do WhatsApp quando card é selecionado

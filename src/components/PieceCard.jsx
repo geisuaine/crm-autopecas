@@ -32,6 +32,7 @@ export default function PieceCard({ card, column, onClick }) {
   const allFound = card.pieces.length > 0 && card.pieces.every(p => p.status === 'found' || p.status === 'delivered')
   const isCheckingCollabs = card.pieces.some(p => p.status === 'not-found') && card.column === 'em-busca'
   const hasCollabAssigned = card.pieces.some(p => p.collaboratorId)
+  const totalOffers = card.pieces.reduce((acc, p) => acc + (p.collabResponses?.length || 0), 0)
 
   return (
     <div
@@ -101,15 +102,36 @@ export default function PieceCard({ card, column, onClick }) {
         </p>
       </div>
 
+      {/* Ofertas de colaboradores */}
+      {totalOffers > 0 && (
+        <div className="px-3 py-2" style={{ background: '#f0fdf4', borderTop: '1.5px solid #bbf7d0' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Users size={11} className="text-green-600 shrink-0" />
+              <span className="text-[11px] font-black text-green-700">Ofertas recebidas:</span>
+            </div>
+            <span className="text-[13px] font-black text-green-700">{totalOffers}</span>
+          </div>
+          {card.pieces.filter(p => p.collabResponses?.length).map(p => (
+            p.collabResponses.slice(-1).map(r => (
+              <div key={r.collabId + r.respondedAt} className="mt-1 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-gray-600 truncate max-w-[60%]">{r.collabStore || r.collabName}</span>
+                <span className="text-[11px] font-black text-green-600">R$ {parseFloat(r.cost).toFixed(2)}</span>
+              </div>
+            ))
+          ))}
+        </div>
+      )}
+
       {/* Verificando colaboradores strip */}
-      {isCheckingCollabs && (
+      {isCheckingCollabs && totalOffers === 0 && (
         <div className="flex items-center gap-1.5 px-3 py-1.5"
           style={{ background: '#fff7ed', borderTop: '1px solid #fed7aa' }}>
           <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shrink-0" />
           <p className="text-[11px] font-bold text-orange-600">Verificando com colaboradores...</p>
         </div>
       )}
-      {hasCollabAssigned && !isCheckingCollabs && (
+      {hasCollabAssigned && !isCheckingCollabs && totalOffers === 0 && (
         <div className="flex items-center gap-1.5 px-3 py-1.5"
           style={{ background: '#f0fdf4', borderTop: '1px solid #bbf7d0' }}>
           <Users size={10} className="text-green-600 shrink-0" />
@@ -130,10 +152,10 @@ export default function PieceCard({ card, column, onClick }) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {hasPrice && (
+          {hasPrice && (mainPiece.price.value || mainPiece.price.cash) && (
             <span className="text-[11px] font-black px-2 py-0.5 rounded-full text-white"
               style={{ background: column.accent }}>
-              R${mainPiece.price.cash}
+              R${parseFloat(mainPiece.price.value || mainPiece.price.cash).toFixed(2)}
             </span>
           )}
           {card.collaboratorsSent > 0 && (

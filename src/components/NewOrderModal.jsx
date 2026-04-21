@@ -25,15 +25,16 @@ function isBusinessHours() {
   return false
 }
 
-function buildBalcaoMsg(name, pieces, vehicle) {
+function buildBalcaoMsg(name, pieces, vehicle, paymentNote) {
   const pieceList = pieces.map(p => `• ${p}`).join('\n')
   const veh = vehicle?.brand ? `${vehicle.brand} ${vehicle.model}${vehicle.year ? ' ' + vehicle.year : ''}` : null
+  const pay = paymentNote?.trim() ? `\n\n💳 *Formas de pagamento:*\n${paymentNote.trim()}` : ''
   return `Olá, ${name.split(' ')[0]}! 👋
 
 Obrigado pela sua visita! Salvamos seu contato e seu pedido já entrou no nosso painel de atendimento. ✅
 
 🔧 Peça${pieces.length > 1 ? 's' : ''} solicitada${pieces.length > 1 ? 's' : ''}:
-${pieceList}${veh ? `\n\n🚗 Veículo: ${veh}` : ''}
+${pieceList}${veh ? `\n\n🚗 Veículo: ${veh}` : ''}${pay}
 
 As informações acima estão corretas? ☝️
 
@@ -42,25 +43,27 @@ Tem mais alguma peça para incluir neste pedido? Pode responder aqui! 😊
 Estamos buscando a disponibilidade e retornamos em breve! 💪`
 }
 
-function buildPhoneMsg(name, pieces, vehicle) {
+function buildPhoneMsg(name, pieces, vehicle, paymentNote) {
   const pieceList = pieces.map(p => `• ${p}`).join('\n')
   const veh = vehicle?.brand ? `${vehicle.brand} ${vehicle.model}${vehicle.year ? ' ' + vehicle.year : ''}` : null
-  return `Olá, ${name.split(' ')[0]}! 👋\n\nRecebemos seu pedido.\n\n🔧 Peça${pieces.length > 1 ? 's' : ''} solicitada${pieces.length > 1 ? 's' : ''}:\n${pieceList}${veh ? `\n\n🚗 Veículo: ${veh}` : ''}\n\nEstamos verificando a disponibilidade com nossos colaboradores e retornamos em breve! ⏳\n\nAguarde, estamos no seu pedido! 💪`
+  const pay = paymentNote?.trim() ? `\n\n💳 *Formas de pagamento:*\n${paymentNote.trim()}` : ''
+  return `Olá, ${name.split(' ')[0]}! 👋\n\nRecebemos seu pedido.\n\n🔧 Peça${pieces.length > 1 ? 's' : ''} solicitada${pieces.length > 1 ? 's' : ''}:\n${pieceList}${veh ? `\n\n🚗 Veículo: ${veh}` : ''}${pay}\n\nEstamos verificando a disponibilidade com nossos colaboradores e retornamos em breve! ⏳\n\nAguarde, estamos no seu pedido! 💪`
 }
 
-function buildOutOfHoursMsg(name, pieces, vehicle) {
+function buildOutOfHoursMsg(name, pieces, vehicle, paymentNote) {
   const pieceList = pieces.map(p => `• ${p}`).join('\n')
   const veh = vehicle?.brand ? `${vehicle.brand} ${vehicle.model}${vehicle.year ? ' ' + vehicle.year : ''}` : null
   const now = new Date()
   const day = now.getDay()
   const isWeekend = day === 0
   const feriado   = isFeriado(now)
+  const pay = paymentNote?.trim() ? `\n\n💳 *Formas de pagamento:*\n${paymentNote.trim()}` : ''
   return `Olá, ${name.split(' ')[0]}! 👋
 
 Obrigado por entrar em contato com a *Auto Peças*!
 
 Recebemos o seu pedido:
-${pieceList}${veh ? `\n🚗 Veículo: ${veh}` : ''}
+${pieceList}${veh ? `\n🚗 Veículo: ${veh}` : ''}${pay}
 
 ${feriado ? '📅 Hoje é feriado, estamos com horário reduzido.' : isWeekend ? '📅 Estamos fora do expediente no momento.' : '⏰ Estamos fora do horário comercial no momento.'}
 
@@ -92,10 +95,11 @@ export default function NewOrderModal({ onClose }) {
   const [brand,    setBrand]    = useState('')
   const [model,    setModel]    = useState('')
   const [year,     setYear]     = useState('')
-  const [pieces,   setPieces]   = useState([''])
-  const [step,     setStep]     = useState('channel') // channel | phone | existing | new | done
-  const [existing, setExisting] = useState(null)
-  const [done,     setDone]     = useState(null)
+  const [pieces,      setPieces]      = useState([''])
+  const [paymentNote, setPaymentNote] = useState('')
+  const [step,        setStep]        = useState('channel') // channel | phone | existing | new | done
+  const [existing,    setExisting]    = useState(null)
+  const [done,        setDone]        = useState(null)
 
   function checkPhone() {
     if (!phone.trim()) return
@@ -124,10 +128,10 @@ export default function NewOrderModal({ onClose }) {
     const vehicle = brand ? { brand, model, year } : null
     let msg
     if (channel === 'balcao') {
-      msg = buildBalcaoMsg(name, validPieces, vehicle)
+      msg = buildBalcaoMsg(name, validPieces, vehicle, paymentNote)
     } else {
       const ooh = !isBusinessHours()
-      msg = ooh ? buildOutOfHoursMsg(name, validPieces, vehicle) : buildPhoneMsg(name, validPieces, vehicle)
+      msg = ooh ? buildOutOfHoursMsg(name, validPieces, vehicle, paymentNote) : buildPhoneMsg(name, validPieces, vehicle, paymentNote)
     }
     const card = addCard({
       client: { name, phone: phone.replace(/\D/g,''), type, address, isReturning: false, channel },
@@ -386,12 +390,25 @@ export default function NewOrderModal({ onClose }) {
                 </button>
               </div>
 
+              {/* Payment options */}
+              <div>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">💳 Formas de Pagamento (opcional)</p>
+                <textarea
+                  value={paymentNote}
+                  onChange={e => setPaymentNote(e.target.value)}
+                  placeholder={"Ex:\n• Pix: (chave)\n• Dinheiro\n• Cartão de crédito/débito"}
+                  rows={3}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Será adicionado ao final da mensagem enviada ao cliente.</p>
+              </div>
+
               {/* Preview message */}
               {name && validPieces.length > 0 && (() => {
                 const vehicle = brand ? { brand, model, year } : null
                 const preview = isBalcao
-                  ? buildBalcaoMsg(name, validPieces, vehicle)
-                  : (!isBusinessHours() ? buildOutOfHoursMsg(name, validPieces, vehicle) : buildPhoneMsg(name, validPieces, vehicle))
+                  ? buildBalcaoMsg(name, validPieces, vehicle, paymentNote)
+                  : (!isBusinessHours() ? buildOutOfHoursMsg(name, validPieces, vehicle, paymentNote) : buildPhoneMsg(name, validPieces, vehicle, paymentNote))
                 const isOoh = !isBalcao && !isBusinessHours()
                 return (
                   <div className={`p-3 rounded-xl border ${isBalcao ? 'bg-green-50 border-green-200' : isOoh ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
