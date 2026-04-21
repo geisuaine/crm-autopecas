@@ -1160,6 +1160,7 @@ export default function CardModal({ card, onClose }) {
               {[
                 { label: '📦 Estado da peça',    msg: 'Vou ver qual eu tenho e já te passo! 😊' },
                 { label: '✅ É original?',        msg: 'Sim, é original! ✅' },
+                { label: '💡 Farol — lado?',      msg: 'É o farol do lado esquerdo ou direito? E é o farol principal? 🚗' },
                 { label: '⏳ Aguardando retorno', msg: `Olá ${card.client?.name?.split(' ')[0] || 'cliente'}! Ainda estou verificando com nossos colaboradores. Em breve te retorno! 🙏` },
                 { label: '🚚 Prazo de entrega',   msg: 'O prazo de entrega depende da sua região. Assim que confirmar o pedido te passo o prazo certinho! 📦' },
               ].map(({ label, msg }) => (
