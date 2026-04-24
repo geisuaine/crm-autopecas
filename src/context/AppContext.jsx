@@ -182,6 +182,22 @@ export function AppProvider({ children, session, onLogout }) {
     return () => { supabase.removeChannel(channel); clearInterval(poll) }
   }, [])
 
+  // Limpeza automática dos cards "finalizado" à meia-noite
+  useEffect(() => {
+    function agendarLimpeza() {
+      const agora = new Date()
+      const meianoite = new Date()
+      meianoite.setHours(24, 0, 0, 0)
+      const ms = meianoite - agora
+      return setTimeout(() => {
+        setCards(prev => prev.filter(c => c.column !== 'finalizado'))
+        agendarLimpeza()
+      }, ms)
+    }
+    const t = agendarLimpeza()
+    return () => clearTimeout(t)
+  }, [])
+
   // Carregar mensagens do WhatsApp quando card é selecionado
   useEffect(() => {
     if (!selectedCard?.numero || !selectedCard?.fromWhatsapp) return
@@ -236,7 +252,9 @@ export function AppProvider({ children, session, onLogout }) {
 
   function updateCollaborator(id, fields) {
     setCollaboratorsList(prev => {
-      const next = prev.map(c => c.id === id ? { ...c, ...fields } : c)
+      const next = fields._deleted
+        ? prev.filter(c => c.id !== id)
+        : prev.map(c => c.id === id ? { ...c, ...fields } : c)
       try { localStorage.setItem('crm-collaborators', JSON.stringify(next)) } catch (_) {}
       return next
     })
@@ -248,7 +266,7 @@ export function AppProvider({ children, session, onLogout }) {
     { id: 'n3', text: 'Reclamação urgente de Antônio Braga',  type: 'complaint', time: new Date() },
   ]
 
-  const NOTIFICAR_STATUS = ['em-busca','peca-encontrada','aguardando-preco','aguardando-repasse','aguardando-envio','finalizado']
+  const NOTIFICAR_STATUS = ['em-busca','peca-encontrada','venda-concretizada','aguardando-repasse','aguardando-envio','finalizado']
 
   const moveCard = useCallback((cardId, newColumn) => {
     setCards(prev => {
@@ -287,8 +305,8 @@ export function AppProvider({ children, session, onLogout }) {
   }, [])
 
   // Updates piece status and auto-sends message to client
-  const WAITING_PAYMENT_COLS = ['novo-pedido','em-busca','peca-encontrada','aguardando-preco']
-  const EARLY_COLS = ['novo-pedido', 'em-busca', 'aguardando-preco']
+  const WAITING_PAYMENT_COLS = ['novo-pedido','em-busca','peca-encontrada']
+  const EARLY_COLS = ['novo-pedido', 'em-busca']
 
   const updatePieceStatus = useCallback((cardId, pieceId, status, price = null) => {
     setCards(prev => {
@@ -387,6 +405,10 @@ export function AppProvider({ children, session, onLogout }) {
     return newCard
   }, [])
 
+  const toggleFavorite = useCallback((cardId) => {
+    setCards(prev => prev.map(c => c.id === cardId ? { ...c, starred: !c.starred } : c))
+  }, [])
+
   const addPiecesToCard = useCallback((cardId, pieceNames, msg) => {
     setCards(prev => prev.map(c => {
       if (c.id !== cardId) return c
@@ -476,6 +498,7 @@ export function AppProvider({ children, session, onLogout }) {
       updateCollaborator,
       freightTable: FREIGHT_TABLE,
       moveCard,
+      toggleFavorite,
       updatePieceStatus,
       updatePiece,
       addMessage,

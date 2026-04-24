@@ -4,12 +4,13 @@ import { useApp } from '../context/AppContext'
 
 const NAV = [
   { id: 'kanban',        label: 'Painel',          icon: LayoutDashboard },
+  { id: 'whatsapp',      label: 'WhatsApp',        icon: MessageCircle   },
   { id: 'sales',         label: 'Vendas',          icon: ShoppingBag     },
   { id: 'repasse',       label: 'Repasse & Vale',  icon: Banknote        },
   { id: 'collaborators', label: 'Colaboradores',   icon: Users           },
   { id: 'freight',       label: 'Tabela de Frete', icon: Truck           },
   { id: 'reports',       label: 'Relatórios',      icon: BarChart3       },
-  { id: 'disparos',       label: 'Disparos',        icon: Send            },
+  { id: 'disparos',      label: 'Disparos',        icon: Send            },
   { id: 'settings',      label: 'Configurações',   icon: Settings        },
 ]
 
@@ -73,6 +74,9 @@ export default function Sidebar({ onProspect }) {
               <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-500 text-white shrink-0">
                 {disparosQueue.length}
               </span>
+            )}
+            {!collapsed && id === 'whatsapp' && (
+              <span className="w-2 h-2 rounded-full bg-green-400 shrink-0 animate-pulse" />
             )}
           </button>
         ))}

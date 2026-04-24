@@ -33,11 +33,28 @@ const MENSAGENS: Record<string, (nome: string, peca: string) => string> = {
     `Pedido finalizado, ${nome}!\n\nSua peca ${peca} foi entregue com sucesso.\n\nObrigado pela preferencia. Qualquer duvida estamos a disposicao.`,
 };
 
-async function enviarMensagem(numero: string, texto: string) {
+async function enviarTexto(numero: string, texto: string) {
   await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
     body: JSON.stringify({ number: numero, textMessage: { text: texto } }),
+  });
+}
+
+async function enviarMidia(numero: string, base64: string, caption: string) {
+  // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
+  const mediaClean = base64.replace(/^data:[^;]+;base64,/, "");
+  await fetch(`${EVOLUTION_URL}/message/sendMedia/${INSTANCE}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
+    body: JSON.stringify({
+      number: numero,
+      mediatype: "image",
+      mimetype: "image/jpeg",
+      caption: caption || "",
+      media: mediaClean,
+      fileName: "foto-peca.jpg",
+    }),
   });
 }
 
@@ -51,14 +68,24 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { numero, nome, peca, status, customMessage } = await req.json();
+    const body = await req.json();
+    const { numero, nome, peca, status, customMessage, mediaBase64, mediaCaption } = body;
 
     if (!numero) {
       return new Response("numero obrigatorio", { status: 200, headers: CORS });
     }
 
-    let texto = "";
+    // Send image/media
+    if (mediaBase64) {
+      await enviarMidia(numero, mediaBase64, mediaCaption || "");
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "application/json" },
+      });
+    }
 
+    // Send text
+    let texto = "";
     if (customMessage) {
       texto = customMessage;
     } else if (status && MENSAGENS[status]) {
@@ -67,7 +94,7 @@ Deno.serve(async (req: Request) => {
       return new Response("mensagem nao configurada", { status: 200, headers: CORS });
     }
 
-    await enviarMensagem(numero, texto);
+    await enviarTexto(numero, texto);
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

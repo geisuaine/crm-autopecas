@@ -1,13 +1,12 @@
 export const COLUMNS = [
-  { id: 'novo-pedido',      label: 'Novo Pedido',       emoji: '📋', color: '#bfdbfe', accent: '#1d4ed8', textColor: '#1e3a8a' },
-  { id: 'em-busca',         label: 'Em Busca',          emoji: '🔍', color: '#fed7aa', accent: '#c2410c', textColor: '#7c2d12' },
-  { id: 'peca-encontrada',  label: 'Peça Encontrada',   emoji: '✅', color: '#86efac', accent: '#15803d', textColor: '#14532d' },
-  { id: 'aguardando-preco',   label: 'Aguardando Preço',   emoji: '⏳', color: '#fde68a', accent: '#b45309', textColor: '#78350f' },
+  { id: 'novo-pedido',        label: 'Novo Pedido',        emoji: '📋', color: '#bfdbfe', accent: '#1d4ed8', textColor: '#1e3a8a' },
+  { id: 'em-busca',           label: 'Em Busca',           emoji: '🔍', color: '#fed7aa', accent: '#c2410c', textColor: '#7c2d12' },
+  { id: 'peca-encontrada',    label: 'Peça Encontrada',    emoji: '✅', color: '#86efac', accent: '#15803d', textColor: '#14532d' },
+  { id: 'venda-concretizada', label: 'Venda Concretizada', emoji: '💰', color: '#fde68a', accent: '#b45309', textColor: '#78350f' },
   { id: 'aguardando-repasse', label: 'Aguardando Repasse', emoji: '💳', color: '#fda4af', accent: '#be123c', textColor: '#881337' },
   { id: 'aguardando-envio',   label: 'Aguardando Envio',   emoji: '🚚', color: '#d8b4fe', accent: '#7c3aed', textColor: '#4c1d95' },
-  { id: 'finalizado',       label: 'Finalizado',        emoji: '🏁', color: '#cbd5e1', accent: '#475569', textColor: '#1e293b' },
-  { id: 'geisa',            label: 'Painel Geisa',      emoji: '🩷', color: '#f9a8d4', accent: '#be185d', textColor: '#831843' },
-  { id: 'reclamacoes',      label: 'Reclamações',       emoji: '⚠️', color: '#fca5a5', accent: '#b91c1c', textColor: '#7f1d1d' },
+  { id: 'finalizado',         label: 'Finalizado',         emoji: '🏁', color: '#cbd5e1', accent: '#475569', textColor: '#1e293b' },
+  { id: 'geisa',              label: 'Painel Geisa',       emoji: '🩷', color: '#f9a8d4', accent: '#be185d', textColor: '#831843' },
 ]
 
 export const EMPLOYEES = [
@@ -70,20 +69,6 @@ export const INITIAL_CARDS = [
     ],
     ai: { audioConverted: true, photoAnalyzed: false, codeIdentified: null },
     collaboratorsSent: 0, createdAt: m(8),
-  },
-  {
-    id: 'c3', column: 'aguardando-preco', priority: 'normal',
-    client: { name: 'Roberto Alves',  phone: '21977002345', isReturning: false },
-    vehicle: { brand: 'Chevrolet',  model: 'Onix',    year: '2022' },
-    pieces: [
-      { id: 'p4', name: 'Farol de Milha', status: 'waiting-price', price: null, assignedTo: 'e1' },
-    ],
-    messages: [
-      { id: 'm5', sender: 'client', type: 'photo', content: 'foto_farol_onix.jpg',                                                                                    time: m(25) },
-      { id: 'm6', sender: 'ai',     type: 'text',  content: 'Recebi a imagem.\n\nJá estou analisando para localizar a peça correta para você.',                        time: m(25) },
-    ],
-    ai: { audioConverted: false, photoAnalyzed: true, codeIdentified: 'ABD-43921' },
-    collaboratorsSent: 0, createdAt: m(25),
   },
   {
     id: 'c4', column: 'em-busca', priority: 'urgent',
@@ -158,19 +143,7 @@ export const INITIAL_CARDS = [
     collaboratorsSent: 0, createdAt: m(10),
   },
   {
-    id: 'c9', column: 'reclamacoes', priority: 'urgent',
-    client: { name: 'Antônio Braga',  phone: '21911008901', isReturning: true  },
-    vehicle: { brand: 'Toyota',     model: 'Hilux',   year: '2019' },
-    pieces: [],
-    messages: [
-      { id: 'm17', sender: 'client', type: 'text', content: 'Recebi a peça errada, preciso resolver isso urgente',                                                    time: m(30) },
-      { id: 'm18', sender: 'ai',     type: 'text', content: 'Olá, Antônio.\n\nAmigo, que bom ter você aqui novamente.\n\nEntendi sua situação. Vou encaminhar para nossa equipe resolver o mais rápido possível.', time: m(30) },
-    ],
-    ai: { audioConverted: false, photoAnalyzed: false, codeIdentified: null },
-    collaboratorsSent: 0, createdAt: m(30),
-  },
-  {
-    id: 'c11', column: 'aguardando-preco', priority: 'normal',
+    id: 'c11', column: 'peca-encontrada', priority: 'normal',
     client: { name: 'Rafael Souza', phone: '21987654321', isReturning: false, type: 'PF', address: 'R. Conde de Bonfim, 88 - Tijuca, RJ' },
     vehicle: { brand: 'Volkswagen', model: 'Polo', year: '2023' },
     pieces: [

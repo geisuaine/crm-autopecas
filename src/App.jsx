@@ -15,6 +15,7 @@ import RepasseView from './components/RepasseView'
 import NewOrderModal from './components/NewOrderModal'
 import SettingsView from './components/SettingsView'
 import DisparosView from './components/DisparosView'
+import WhatsAppView from './components/WhatsAppView'
 import { LayoutDashboard, Users, Truck, BarChart3, Settings } from 'lucide-react'
 import { getSession, fazerLogout } from './lib/supabase'
 
@@ -52,6 +53,7 @@ function AppContent() {
           {view === 'sales'         && <SalesView />}
           {view === 'repasse'       && <RepasseView />}
           {view === 'disparos'      && <DisparosView />}
+          {view === 'whatsapp'      && <WhatsAppView />}
         </main>
       </div>
 

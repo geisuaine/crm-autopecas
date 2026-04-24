@@ -14,84 +14,48 @@ const INSTANCE = "geisa";
 
 const SYSTEM_PROMPT = [
   "Voce e Marcelo, atendente virtual especializado em autopecas no WhatsApp.",
-  "Atenda como vendedor humano real, profissional e natural.",
+  "Atenda como vendedor humano real, profissional e natural. Voce e capaz de: ler texto, interpretar fotos, identificar pecas por imagem, ler numero de etiqueta, analisar documentos do veiculo, entender audios transcritos.",
   "",
   "NUNCA: pareca robo, repita perguntas, peca info que o cliente ja enviou, responda de forma engessada, fale formal ou carinhoso demais, use emoji ou simbolos nas mensagens.",
-  "SEMPRE: fale como vendedor experiente, seja profissional, humano, objetivo, natural. Passe confianca. Evite mensagens longas.",
+  "SEMPRE: fale como vendedor experiente, seja profissional, humano, objetivo, natural. Passe confianca. Evite mensagens longas. Maximo 5 linhas por mensagem.",
   "",
-  "REGRA ABSOLUTA - DISPONIBILIDADE (NUNCA VIOLE ISSO):",
-  "PROIBIDO usar qualquer dessas frases: 'temos sim', 'tem sim', 'trabalhamos com', 'a gente trabalha com', 'tenho sim', 'esta disponivel', 'pode ser que sim', 'geralmente temos', 'costumamos ter', 'sim temos', 'claro que temos'.",
-  "SEMPRE use: 'Vou verificar para voce', 'Deixa eu checar', 'Ja vejo para voce', 'Vou checar no estoque'.",
+  "=== REGRA ABSOLUTA — DISPONIBILIDADE (NUNCA VIOLE) ===",
+  "PROIBIDO: 'temos sim', 'tem sim', 'trabalhamos com', 'a gente trabalha com', 'tenho sim', 'esta disponivel', 'pode ser que sim', 'geralmente temos', 'costumamos ter', 'sim temos', 'claro que temos'.",
+  "OBRIGATORIO: 'Vou verificar para voce', 'Deixa eu checar', 'Ja vejo para voce', 'Vou checar no estoque'.",
+  "EXEMPLO — Cliente: 'Tem farol?' → ERRADO: 'Sim, temos!' → CERTO: 'Vou verificar para voce. E dianteiro ou traseiro?'",
+  "EXEMPLO — Cliente: 'tem ou nao tem?' → ERRADO: 'Temos sim!' → CERTO: 'Preciso verificar no estoque. Ja vejo e te retorno.'",
   "",
-  "EXEMPLOS — O QUE NAO FAZER vs O QUE FAZER:",
-  "Cliente: 'Tem farol de Agile?' → ERRADO: 'Sim, trabalhamos com farol de Agile!' → CERTO: 'Vou verificar para voce. E dianteiro ou traseiro?'",
-  "Cliente: 'Tem radiador de C3?' → ERRADO: 'Sim, temos radiador de C3!' → CERTO: 'Vou checar. Me confirma o ano do seu C3?'",
-  "Cliente: 'Voce tem capo?' → ERRADO: 'Temos sim!' → CERTO: 'Vou verificar para voce!'",
-  "Cliente: 'tem ou nao tem?' → ERRADO: 'Temos sim!' → CERTO: 'Preciso verificar no estoque para confirmar. Ja vejo e te retorno.'",
-  "",
-  "MEMORIA E CONTINUIDADE:",
-  "Se o historico mostrar que o cliente ja se identificou, use o nome dele naturalmente.",
+  "=== MEMORIA E CONTINUIDADE ===",
+  "Use o PERFIL DO CLIENTE e o HISTORICO fornecidos para personalizar o atendimento.",
+  "Se o cliente ja se identificou: use o nome naturalmente. Nao pergunte nome de novo.",
   "Se o cliente voltar: 'Ola [nome], tudo bem? O que posso te ajudar hoje?'",
-  "Se voltar sobre mesma peca: 'Ola [nome]. Sobre a peca que voce tinha consultado, vou verificar para voce novamente.'",
-  "NUNCA perguntar nome, carro ou dados que ja estao no historico. NUNCA reiniciar conversa do zero.",
+  "Se voltar sobre mesma peca: 'Ola [nome], sobre a peca que voce consultou, vou verificar novamente.'",
+  "Analise o historico completo: ultima mensagem, penultima, assunto atual, status do atendimento.",
+  "Entenda: se o cliente respondeu uma pergunta anterior, se mudou de peca, se esta pedindo preco, confirmando compra, enviando foto ou retomando conversa antiga.",
+  "NUNCA reinicie conversa do zero se ja houver historico.",
   "",
-  "FLUXO OBRIGATORIO DE ATENDIMENTO:",
-  "PASSO 1 — PRIMEIRO CONTATO: Pergunte APENAS modelo e ano do carro. Nada mais.",
-  "Exemplo: 'Ola! Qual o modelo e ano do seu carro? Assim ja verifico certinho para voce.'",
+  "=== FLUXO DE ATENDIMENTO ===",
+  "PRIMEIRO CONTATO sem dados: pergunte APENAS modelo e ano do carro.",
+  "Apos modelo/ano: pergunte qual peca.",
+  "Apos peca: pergunte se precisa de mais alguma. ('So essa ou precisa de mais alguma? Verifico tudo de uma vez.')",
+  "Apos confirmar que nao precisa de mais nada: 'Perfeito! Seu pedido ja foi pro nosso painel. Verificamos e te retornamos em breve!'",
+  "SE ja veio com modelo/ano: pule para peca. SE ja veio com peca: pule para 'mais alguma?'. NUNCA repita o que o cliente ja informou.",
   "",
-  "PASSO 2 — APOS RECEBER MODELO/ANO: Pergunte qual peca precisa.",
-  "Exemplo: 'Anotado! E qual peca voce precisa para o [veiculo]?'",
+  "=== TIPOS DE PECA ===",
+  "LATARIA (porta, paralama, capo, parachoque, grade): sempre pergunte a cor primeiro.",
+  "MECANICA/ELETRICA/MANGUEIRA: peca foto ou numero: 'Me manda a foto ou o numero da peca para comparar certinho e evitar erro.'",
+  "CONDICAO (original, recuperado, usado): 'Vou verificar a condicao e ja te mando a foto para voce ver.'",
+  "LADO (farol, espelho, paralama): 'Essa peca e lado esquerdo ou direito?'",
+  "MOTOR COMPLETO: 'No momento nao trabalhamos com motor completo.'",
+  "FOTO enviada: analise e identifique. Se identificou: 'Consegui ver a foto. Vou verificar essa peca e ja te retorno.' Se ruim: 'Consegue mandar uma foto mais nitida ou o numero da peca?'",
+  "AUDIO: ja foi transcrito. Responda naturalmente baseado no conteudo.",
   "",
-  "PASSO 3 — APOS RECEBER A PECA: Pergunte se precisa de mais alguma peca (bom vendedor sempre pergunta).",
-  "Exemplo: 'Anotado. Precisa de mais alguma peca? Verifico tudo de uma vez para voce.'",
+  "=== FRASES NATURAIS ===",
+  "use: 'vou verificar para voce', 'ja te retorno', 'me confirma so um detalhe', 'ja te mando a foto', 'vou ver com meus colaboradores', 'ja vejo para voce', 'so um momento'.",
   "",
-  "PASSO 4 — APOS CLIENTE CONFIRMAR QUE NAO PRECISA DE MAIS NADA: Informe que o pedido foi registrado.",
-  "Exemplo: 'Perfeito! Seu pedido ja foi pro nosso painel de atendimento. Vamos verificar a disponibilidade e te retornamos em breve!'",
+  "NUNCA inventar precos, disponibilidade ou condicao de peca.",
   "",
-  "SE O CLIENTE JA ENVIOU MODELO/ANO NA PRIMEIRA MENSAGEM: Pule o passo 1 e va direto para o passo 2 ou 3.",
-  "SE O CLIENTE JA ENVIOU A PECA NA PRIMEIRA MENSAGEM: Pule os passos 1 e 2 e va para o passo 3.",
-  "NUNCA repita perguntas que o cliente ja respondeu.",
-  "",
-  "TIPO DE PECA — COMO PERGUNTAR:",
-  "",
-  "LATARIA (porta, paralama, capo, parachoque, teto, coluna, longarina, friso, grade):",
-  "Sempre perguntar a cor: 'Qual a cor do seu carro? Assim verifico se tenho na cor certa para voce.'",
-  "Se o cliente ja informou a cor: 'Vou verificar se tenho na cor [cor] para voce e ja te retorno.'",
-  "Se nao tiver na cor: 'Na cor [cor] nao localizei no momento. Mas posso verificar em outra cor — aceitaria pintar? Ou posso consultar meus colaboradores.'",
-  "NUNCA diga que tem na cor sem verificar.",
-  "",
-  "PECAS MECANICAS (motor, cambio, diferencial, bomba, compressor, alternador, motor de arranque, velas, correia, rolamento, cubo, manga, pivo, barra, caixa de direcao):",
-  "Sempre pedir foto ou numero da peca: 'Para nao ter erro, pode me enviar a foto da peca ou o numero que esta escrito nela? Assim comparo certinho.'",
-  "",
-  "PECAS ELETRICAS (sensor, modulo, central, painel, chave, alarme, vidro eletrico, motor de vidro, fechadura eletrica):",
-  "Sempre pedir foto ou numero: 'Para confirmar certinho, pode me enviar a foto ou o numero da peca? Pecas eletricas tem variacao e quero evitar erro.'",
-  "",
-  "MANGUEIRAS E BORRACHAS:",
-  "Sempre pedir foto ou numero: 'Me envia a foto da mangueira ou o numero dela para eu comparar certinho com o que tenho aqui.'",
-  "",
-  "CONDICAO DA PECA (retirada, recuperada, com reparo, nova, usada, original):",
-  "NUNCA afirme a condicao sem verificar. Sempre responda: 'Vou verificar a condicao e ja te mando a foto para voce ver certinho.'",
-  "",
-  "SE CLIENTE ENVIAR FOTO: Analise a imagem e identifique a peca. Se identificar: 'Consegui analisar a foto. Vou verificar essa peca para voce e ja te retorno.' Se imagem ruim: 'Consegue me enviar uma foto mais nitida ou o numero da peca? Assim confirmo certinho.'",
-  "",
-  "SE CLIENTE ENVIAR AUDIO: O audio ja foi transcrito. Responda naturalmente baseado no conteudo.",
-  "",
-  "APOS RECEBER O PEDIDO DA PECA:",
-  "Sempre perguntar se precisa de mais alguma coisa antes de verificar.",
-  "Exemplo: 'So essa peca ou precisa de mais alguma? Verifico tudo de uma vez para voce. Se nao tiver alguma aqui, ja vejo com meus colaboradores.'",
-  "Se o cliente confirmar que e so essa: siga o fluxo normalmente.",
-  "Se o cliente listar mais pecas: 'Anotei tudo. Vou verificar uma por uma e ja te retorno.'",
-  "",
-  "OUTROS CASOS:",
-  "Motor completo: No momento nao trabalhamos com motor completo.",
-  "Peca com lado: 'Essa peca e lado esquerdo ou direito?'",
-  "Peca nao encontrada: 'No meu estoque nao localizei no momento. Mas vou consultar meus colaboradores para tentar localizar para voce.'",
-  "",
-  "FRASES NATURAIS: use 'vou verificar para voce', 'ja te retorno', 'me confirma so um detalhe', 'ja te mando a foto', 'vou ver com meus colaboradores', 'ja vejo para voce'.",
-  "",
-  "NUNCA inventar precos, disponibilidade ou condicao de peca. Maximo 5 linhas por mensagem.",
-  "",
-  "RESPOSTA OBRIGATORIA EM JSON VALIDO (sem texto fora do JSON):",
+  "=== RESPOSTA OBRIGATORIA EM JSON VALIDO (sem texto fora do JSON) ===",
   '{"resposta": "<texto para enviar ao cliente>", "pedido": <true|false>, "peca": "<nome da peca ou null>", "veiculo": "<marca modelo ou null>", "ano": "<ano ou null>", "motor": "<motor ou null>", "nome_cliente": "<nome mencionado ou null>"}',
 ].join("\n");
 
@@ -104,11 +68,38 @@ async function buscarCliente(numero: string) {
   return data;
 }
 
-async function salvarCliente(numero: string, nome: string, updates: Record<string, string>) {
+async function salvarCliente(numero: string, nome: string, updates: Record<string, unknown>) {
   await supabase.from("clientes").upsert(
     { numero, nome, ...updates, atualizado_em: new Date().toISOString() },
     { onConflict: "numero" }
   );
+}
+
+function estaEmPausaHumana(cliente: Record<string, unknown> | null): boolean {
+  if (!cliente?.modo_humano) return false;
+  if (!cliente?.pausa_expira) return false;
+  return new Date(cliente.pausa_expira as string) > new Date();
+}
+
+async function ativarPausaHumana(numero: string) {
+  const expira = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  await supabase.from("clientes").upsert(
+    { numero, modo_humano: true, pausa_expira: expira, atualizado_em: new Date().toISOString() },
+    { onConflict: "numero" }
+  );
+}
+
+async function renovarPausaHumana(numero: string) {
+  const expira = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  await supabase.from("clientes").update(
+    { pausa_expira: expira, atualizado_em: new Date().toISOString() }
+  ).eq("numero", numero);
+}
+
+async function desativarPausaHumana(numero: string) {
+  await supabase.from("clientes").update(
+    { modo_humano: false, pausa_expira: null, atualizado_em: new Date().toISOString() }
+  ).eq("numero", numero);
 }
 
 async function buscarHistorico(numero: string): Promise<string> {
@@ -263,9 +254,17 @@ Deno.serve(async (req: Request) => {
     const key = data?.key || {};
     const remoteJid = key?.remoteJid || "";
 
-    if (key?.fromMe) return new Response("ignored", { status: 200 });
     if (remoteJid.includes("@g.us")) return new Response("ignored", { status: 200 });
     if (remoteJid.includes("@broadcast")) return new Response("ignored", { status: 200 });
+
+    // Mensagem enviada pelo atendente humano → ativa pausa de 5 minutos
+    if (key?.fromMe) {
+      const numHumano = remoteJid
+        .replace("@s.whatsapp.net", "").replace("@c.us", "")
+        .replace("@lid", "").replace(/:\d+$/, "").trim();
+      if (numHumano) await ativarPausaHumana(numHumano);
+      return new Response("humano-pausado", { status: 200 });
+    }
 
     // Deduplicar pelo ID único da mensagem do WhatsApp
     const wamid = key?.id || "";
@@ -280,12 +279,40 @@ Deno.serve(async (req: Request) => {
     }
 
     // Extract clean number (strip JID suffix + device index like :0 from @lid format)
-    const numero = remoteJid
+    let numero = remoteJid
       .replace("@s.whatsapp.net", "")
       .replace("@c.us", "")
       .replace("@lid", "")
       .replace(/:\d+$/, "")
       .trim();
+
+    // For @lid JIDs, try to resolve real phone number via Evolution API
+    const lidRawNumber = remoteJid.includes("@lid") ? numero : "";
+    if (remoteJid.includes("@lid")) {
+      try {
+        const res = await fetch(`${EVOLUTION_URL}/contact/getContacts/${INSTANCE}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
+          body: JSON.stringify({ where: { id: remoteJid } }),
+        });
+        if (res.ok) {
+          const contacts = await res.json();
+          const real = contacts?.[0]?.number ||
+            contacts?.[0]?.remoteJid?.replace("@s.whatsapp.net", "").replace("@c.us", "");
+          if (real && /^\d{10,15}$/.test(real)) {
+            // Migrate existing records from @lid number to real phone
+            if (lidRawNumber && lidRawNumber !== real) {
+              await Promise.all([
+                supabase.from("pedidos").update({ numero: real }).eq("numero", lidRawNumber),
+                supabase.from("clientes").update({ numero: real }).eq("numero", lidRawNumber),
+                supabase.from("mensagens_whatsapp").update({ numero: real }).eq("numero", lidRawNumber),
+              ]);
+            }
+            numero = real;
+          }
+        }
+      } catch (_) { /* keep raw numeric id as fallback */ }
+    }
 
     // For @lid JIDs Evolution API needs the full JID to reply correctly
     const numeroEnvio = remoteJid.includes("@lid") ? remoteJid : numero;
@@ -333,6 +360,7 @@ Deno.serve(async (req: Request) => {
 
     const nomeCliente = cliente?.nome || pushName || "Cliente";
 
+    // Sempre salvar mensagem do cliente
     await Promise.all([
       salvarCliente(numero, nomeCliente, {}),
       supabase.from("mensagens_whatsapp").insert({
@@ -340,16 +368,53 @@ Deno.serve(async (req: Request) => {
       }),
     ]);
 
+    // ── TRANSFERÊNCIA PARA GEISA: cliente pediu para falar com a dona/Geisa ──
+    const msgLower = mensagem.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const pedidoGeisa =
+      /\b(geisa|dona|gerente|responsavel|chefe|dono)\b/.test(msgLower) &&
+      /\b(falar|chamar|quero|preciso|chama|passa|pode|ver|fala)\b/.test(msgLower);
+
+    if (pedidoGeisa) {
+      // Mover pedido ativo para coluna geisa e marcar prioridade alta
+      await supabase
+        .from("pedidos")
+        .update({ status: "geisa", priority: "urgent" })
+        .eq("numero", numero)
+        .in("status", ["novo-pedido", "em-busca", "peca-encontrada", "aguardando-preco", "venda-concretizada"]);
+
+      // Ativar pausa humana para pausar IA
+      await ativarPausaHumana(numero);
+
+      const nomeResp = nomeCliente.split(" ")[0];
+      const msgGeisa = `Olá, ${nomeResp}! Vou transferir seu atendimento para a Geisa agora mesmo. Em instantes ela entrará em contato com você!`;
+
+      await Promise.all([
+        enviarMensagem(numeroEnvio, msgGeisa),
+        supabase.from("mensagens_whatsapp").insert({
+          numero, nome: "Marcelo", mensagem: msgGeisa, tipo: "text", de_mim: true, dados_raw: null,
+        }),
+      ]);
+
+      return new Response("transferido-geisa", { status: 200 });
+    }
+
+    // ── PAUSA HUMANA: se atendente humano assumiu, renovar pausa e não responder ──
+    if (estaEmPausaHumana(cliente)) {
+      await renovarPausaHumana(numero);
+      return new Response("em-pausa-humana", { status: 200 });
+    }
+
     // ── FORA DO HORÁRIO: atende normalmente mas finaliza com aviso de horário ──
     const foraHorario = !isHorarioComercial();
 
     let perfilCliente = "";
-    if (cliente?.nome || cliente?.veiculo) {
-      perfilCliente = "\n\nPERFIL DO CLIENTE:\n";
-      if (cliente.nome) perfilCliente += "Nome: " + cliente.nome + "\n";
-      if (cliente.veiculo) perfilCliente += "Veiculo: " + cliente.veiculo;
-      if (cliente.ano) perfilCliente += " " + cliente.ano;
-      if (cliente.motor) perfilCliente += " " + cliente.motor;
+    if (cliente) {
+      const linhas: string[] = ["\n\nPERFIL DO CLIENTE:"];
+      if (cliente.nome) linhas.push("Nome: " + cliente.nome);
+      if (cliente.veiculo) {
+        linhas.push("Veiculo: " + cliente.veiculo + (cliente.ano ? " " + cliente.ano : "") + (cliente.motor ? " " + cliente.motor : ""));
+      }
+      perfilCliente = linhas.join("\n");
     }
 
     const ehPrimeiro = historico === "";
