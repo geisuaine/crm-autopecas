@@ -110,9 +110,23 @@ export function AppProvider({ children, session, onLogout }) {
   const [geisaMode, setGeisaMode]                 = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchQuery, setSearchQuery]             = useState('')
-  const [users, setUsers]                         = useState(INITIAL_USERS)
-  const [currentUserId, setCurrentUserId]         = useState('admin')
-  const [collaboratorsList, setCollaboratorsList] = useState(COLLABORATORS)
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('crm-users')
+      if (saved) {
+        return JSON.parse(saved).map(u => ({ ...u, permissions: new Set(u.permissions || []) }))
+      }
+    } catch (_) {}
+    return INITIAL_USERS
+  })
+  const [currentUserId, setCurrentUserId] = useState('admin')
+  const [collaboratorsList, setCollaboratorsList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('crm-collaborators')
+      if (saved) return JSON.parse(saved)
+    } catch (_) {}
+    return COLLABORATORS
+  })
 
   const addCollaborator = useCallback((dados) => {
     const novo = {
@@ -126,7 +140,11 @@ export function AppProvider({ children, session, onLogout }) {
       delivery: dados.delivery || false,
       responseTime: 30,
     }
-    setCollaboratorsList(prev => [...prev, novo])
+    setCollaboratorsList(prev => {
+      const next = [...prev, novo]
+      try { localStorage.setItem('crm-collaborators', JSON.stringify(next)) } catch (_) {}
+      return next
+    })
     return novo
   }, [])
 
@@ -192,16 +210,36 @@ export function AppProvider({ children, session, onLogout }) {
   }
 
   function updateUserPermissions(userId, permission, enabled) {
-    setUsers(prev => prev.map(u => {
-      if (u.id !== userId) return u
-      const perms = new Set(u.permissions)
-      enabled ? perms.add(permission) : perms.delete(permission)
-      return { ...u, permissions: perms }
-    }))
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.id !== userId) return u
+        const perms = new Set(u.permissions)
+        enabled ? perms.add(permission) : perms.delete(permission)
+        return { ...u, permissions: perms }
+      })
+      try {
+        localStorage.setItem('crm-users', JSON.stringify(next.map(u => ({ ...u, permissions: [...u.permissions] }))))
+      } catch (_) {}
+      return next
+    })
   }
 
   function addUser(user) {
-    setUsers(prev => [...prev, { ...user, permissions: new Set(user.permissions || []) }])
+    setUsers(prev => {
+      const next = [...prev, { ...user, permissions: new Set(user.permissions || []) }]
+      try {
+        localStorage.setItem('crm-users', JSON.stringify(next.map(u => ({ ...u, permissions: [...u.permissions] }))))
+      } catch (_) {}
+      return next
+    })
+  }
+
+  function updateCollaborator(id, fields) {
+    setCollaboratorsList(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, ...fields } : c)
+      try { localStorage.setItem('crm-collaborators', JSON.stringify(next)) } catch (_) {}
+      return next
+    })
   }
 
   const notifications = [
@@ -435,6 +473,7 @@ export function AppProvider({ children, session, onLogout }) {
       employees: EMPLOYEES,
       collaborators: collaboratorsList,
       addCollaborator,
+      updateCollaborator,
       freightTable: FREIGHT_TABLE,
       moveCard,
       updatePieceStatus,

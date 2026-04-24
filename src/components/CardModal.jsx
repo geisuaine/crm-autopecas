@@ -202,15 +202,24 @@ function PieceQuickRow({ piece, idx, cardId, cardNumero, cardClientName, cardVei
         </div>
       )}
 
-      {/* Price form */}
-      {(isFound || showPrice) && !showCollab && (
+      {/* Price — only when user clicks to add */}
+      {isFound && !showCollab && (
         <div className="border-t border-gray-100 px-3 py-2.5 bg-gray-50">
-          {!showPrice && !piece.price?.value ? (
-            <button onClick={() => setShowPrice(true)}
-              className="w-full text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl py-2 hover:bg-amber-100 transition-colors">
-              💰 Inserir valor da peça
-            </button>
-          ) : showPrice ? (
+          {!showPrice ? (
+            <div className="flex items-center justify-between">
+              {piece.price?.value ? (
+                <span className="text-sm font-black text-green-700">
+                  R$ {parseFloat(piece.price.value).toFixed(2)}
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Sem preço</span>
+              )}
+              <button onClick={() => setShowPrice(true)}
+                className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-100 transition-colors">
+                💰 {piece.price?.value ? 'Editar valor' : 'Adicionar valor'}
+              </button>
+            </div>
+          ) : (
             <div className="space-y-2">
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -233,7 +242,7 @@ function PieceQuickRow({ piece, idx, cardId, cardNumero, cardClientName, cardVei
                 <button onClick={() => setShowPrice(false)} className="px-4 py-2 rounded-xl text-xs text-gray-500 bg-gray-200">×</button>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       )}
 
@@ -290,11 +299,13 @@ function PieceRow({ piece, cardId, cardNumero, cardClientName, cardVeiculo, card
 
   function sendPhotoToClient(photoDataUrl, caption) {
     if (!cardNumero) return
-    // Sends via Evolution API through the notify-client function
-    fetch(`https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/send-photo`, {
+    const raw = String(cardNumero).replace(/\D/g, '')
+    const num = raw.startsWith('55') ? raw : `55${raw}`
+    if (!/^\d{12,13}$/.test(num)) return
+    fetch('https://xrukjtxunvwgipvebkzf.supabase.co/functions/v1/notify-client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_KEY}` },
-      body: JSON.stringify({ numero: cardNumero, imageDataUrl: photoDataUrl, caption }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero: num, mediaBase64: photoDataUrl, mediaCaption: caption }),
     }).catch(() => {})
     addMessage(cardId, { sender: 'ai', type: 'photo', content: `📷 Foto enviada: ${caption}`, imageDataUrl: photoDataUrl })
   }
