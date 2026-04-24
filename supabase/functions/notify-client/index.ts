@@ -33,22 +33,34 @@ const MENSAGENS: Record<string, (nome: string, peca: string) => string> = {
     `Pedido finalizado, ${nome}!\n\nSua peca ${peca} foi entregue com sucesso.\n\nObrigado pela preferencia. Qualquer duvida estamos a disposicao.`,
 };
 
+function normalizarNumero(numero: string): string {
+  // Keep full JID formats (@lid, @s.whatsapp.net) as-is for Evolution API routing
+  if (numero.includes("@")) return numero;
+  // Strip non-digits
+  const digits = numero.replace(/\D/g, "");
+  // Add Brazil country code if missing
+  if (digits.length === 10 || digits.length === 11) return "55" + digits;
+  return digits;
+}
+
 async function enviarTexto(numero: string, texto: string) {
+  const num = normalizarNumero(numero);
   await fetch(`${EVOLUTION_URL}/message/sendText/${INSTANCE}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
-    body: JSON.stringify({ number: numero, textMessage: { text: texto } }),
+    body: JSON.stringify({ number: num, textMessage: { text: texto } }),
   });
 }
 
 async function enviarMidia(numero: string, base64: string, caption: string) {
+  const num = normalizarNumero(numero);
   // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
   const mediaClean = base64.replace(/^data:[^;]+;base64,/, "");
   await fetch(`${EVOLUTION_URL}/message/sendMedia/${INSTANCE}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
     body: JSON.stringify({
-      number: numero,
+      number: num,
       mediatype: "image",
       mimetype: "image/jpeg",
       caption: caption || "",

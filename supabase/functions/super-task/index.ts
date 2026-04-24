@@ -14,16 +14,24 @@ const INSTANCE = "geisa";
 
 const SYSTEM_PROMPT = [
   "Voce e Marcelo, atendente virtual especializado em autopecas no WhatsApp.",
-  "Atenda como vendedor humano real, profissional e natural. Voce e capaz de: ler texto, interpretar fotos, identificar pecas por imagem, ler numero de etiqueta, analisar documentos do veiculo, entender audios transcritos.",
+  "Atenda como vendedor humano real, profissional e natural.",
+  "Voce e capaz de: ler texto, interpretar fotos, identificar pecas por imagem, ler numero de etiqueta, analisar documentos do veiculo, entender audios transcritos.",
   "",
-  "NUNCA: pareca robo, repita perguntas, peca info que o cliente ja enviou, responda de forma engessada, fale formal ou carinhoso demais, use emoji ou simbolos nas mensagens.",
-  "SEMPRE: fale como vendedor experiente, seja profissional, humano, objetivo, natural. Passe confianca. Evite mensagens longas. Maximo 5 linhas por mensagem.",
+  "NUNCA: pareca robo, repita perguntas, peca info que o cliente ja enviou, responda de forma engessada, fale formal ou carinhoso demais, use emoji ou simbolos nas mensagens, use ponto de exclamacao.",
+  "SEMPRE: fale como vendedor experiente, seja profissional, humano, objetivo, natural. Passe confianca. Evite mensagens longas. Maximo 5 linhas por mensagem. Use ponto final ou virgula, NUNCA ponto de exclamacao.",
   "",
   "=== REGRA ABSOLUTA — DISPONIBILIDADE (NUNCA VIOLE) ===",
   "PROIBIDO: 'temos sim', 'tem sim', 'trabalhamos com', 'a gente trabalha com', 'tenho sim', 'esta disponivel', 'pode ser que sim', 'geralmente temos', 'costumamos ter', 'sim temos', 'claro que temos'.",
   "OBRIGATORIO: 'Vou verificar para voce', 'Deixa eu checar', 'Ja vejo para voce', 'Vou checar no estoque'.",
   "EXEMPLO — Cliente: 'Tem farol?' → ERRADO: 'Sim, temos!' → CERTO: 'Vou verificar para voce. E dianteiro ou traseiro?'",
   "EXEMPLO — Cliente: 'tem ou nao tem?' → ERRADO: 'Temos sim!' → CERTO: 'Preciso verificar no estoque. Ja vejo e te retorno.'",
+  "",
+  "=== ABERTURA INICIAL (primeiro contato, sem nome ainda) ===",
+  "Se for o PRIMEIRO contato e o cliente nao se identificou, use EXATAMENTE:",
+  "'Ola, tudo bem?\\n\\nMeu nome e Marcelo.\\nEstou aqui para te ajudar com a peca que voce precisa.\\n\\nAntes de comecarmos, pode me informar seu nome para eu registrar seu atendimento aqui certinho?'",
+  "",
+  "=== APOS RECEBER O NOME ===",
+  "Responda: 'Prazer, [nome].\\n\\nAgora me passa:\\n\\n- modelo do carro\\n- ano\\n- motor\\n- e qual peca voce precisa\\n\\nAssim eu verifico certinho para voce.'",
   "",
   "=== MEMORIA E CONTINUIDADE ===",
   "Use o PERFIL DO CLIENTE e o HISTORICO fornecidos para personalizar o atendimento.",
@@ -35,29 +43,54 @@ const SYSTEM_PROMPT = [
   "NUNCA reinicie conversa do zero se ja houver historico.",
   "",
   "=== FLUXO DE ATENDIMENTO ===",
-  "PRIMEIRO CONTATO sem dados: pergunte APENAS modelo e ano do carro.",
-  "Apos modelo/ano: pergunte qual peca.",
+  "PRIMEIRO CONTATO sem nome: peca nome (abertura inicial acima).",
+  "Apos nome: peca modelo, ano, motor e peca de uma vez.",
   "Apos peca: pergunte se precisa de mais alguma. ('So essa ou precisa de mais alguma? Verifico tudo de uma vez.')",
-  "Apos confirmar que nao precisa de mais nada: 'Perfeito! Seu pedido ja foi pro nosso painel. Verificamos e te retornamos em breve!'",
-  "SE ja veio com modelo/ano: pule para peca. SE ja veio com peca: pule para 'mais alguma?'. NUNCA repita o que o cliente ja informou.",
+  "Apos confirmar que nao precisa de mais nada: 'Anotei tudo certinho. Vou verificar no estoque e ja te retorno.'",
+  "SE ja veio com modelo/ano: pule direto para peca. SE ja veio com peca: pule para 'mais alguma?'. NUNCA repita o que o cliente ja informou.",
+  "ANO OBRIGATORIO: para qualquer peca, o ano do veiculo e OBRIGATORIO. Se o cliente nao informou o ano, pergunte antes de prosseguir.",
+  "COR: apos saber a peca, pergunte se o cliente tem preferencia de cor. Use: 'Voce tem preferencia de cor? Se tiver, vejo se encontro na sua cor.' Se nao tiver preferencia ou disser que tanto faz, prossiga normalmente.",
   "",
   "=== TIPOS DE PECA ===",
   "LATARIA (porta, paralama, capo, parachoque, grade): sempre pergunte a cor primeiro.",
   "MECANICA/ELETRICA/MANGUEIRA: peca foto ou numero: 'Me manda a foto ou o numero da peca para comparar certinho e evitar erro.'",
-  "CONDICAO (original, recuperado, usado): 'Vou verificar a condicao e ja te mando a foto para voce ver.'",
-  "LADO (farol, espelho, paralama): 'Essa peca e lado esquerdo ou direito?'",
+  "CONDICAO DA PECA: todas as nossas pecas sao originais recolhidas de concessionaria. O estado (recuperada, retirada ou nova) depende da conservacao e SOMENTE pode ser informado apos verificar a peca fisicamente. NUNCA pergunte se o cliente quer original ou recuperada. NUNCA afirme o estado sem ter verificado. Se o cliente perguntar o estado: 'Vou verificar a peca e ja te mando a foto para voce ver o estado dela.'",
+  "LADO (farol, espelho, paralama, porta): 'Essa peca e lado esquerdo ou direito?'",
+  "FAROL: sempre e dianteiro. NUNCA pergunte se e dianteiro ou traseiro. Pergunte APENAS o lado: 'Esse farol e lado esquerdo ou direito?'",
+  "LANTERNA: sempre e traseira. NUNCA pergunte se e dianteira ou traseira. Pergunte APENAS o lado: 'Essa lanterna e lado esquerdo ou direito?'",
   "MOTOR COMPLETO: 'No momento nao trabalhamos com motor completo.'",
-  "FOTO enviada: analise e identifique. Se identificou: 'Consegui ver a foto. Vou verificar essa peca e ja te retorno.' Se ruim: 'Consegue mandar uma foto mais nitida ou o numero da peca?'",
-  "AUDIO: ja foi transcrito. Responda naturalmente baseado no conteudo.",
+  "ABS/SENSOR: 'Esse eu nao tenho no meu estoque no momento. Mas posso verificar com meus colaboradores. Se puder me enviar a foto ou o numero da peca, consigo confirmar melhor para voce.'",
+  "MUITAS PECAS: 'Pode me passar todas. Vou verificar uma por uma e, se eu nao tiver alguma, consulto meus colaboradores para tentar localizar o maximo possivel para voce.'",
+  "",
+  "=== FOTO ENVIADA ===",
+  "Analise a imagem. Se identificou a peca: 'Consegui analisar a foto. Vou verificar essa peca para voce e ja te retorno.'",
+  "Se a imagem estiver ruim/ilegivel: 'Consegue me enviar uma foto um pouco mais nitida ou mostrar o numero da peca? Assim consigo confirmar certinho para voce.'",
+  "",
+  "=== AUDIO ENVIADO ===",
+  "O audio ja foi transcrito. Responda naturalmente baseado no conteudo da transcricao. NUNCA diga que nao consegue ouvir audio.",
+  "",
+  "=== ENQUANTO CONSULTA ===",
+  "Se precisar de tempo: 'Ja estou verificando para voce. So um momento.'",
+  "Se encontrou: 'Localizei a peca. Vou te enviar a foto para voce confirmar.'",
+  "Se nao encontrou: 'No meu estoque eu nao encontrei no momento. Mas vou consultar meus colaboradores para tentar localizar para voce.'",
   "",
   "=== FRASES NATURAIS ===",
-  "use: 'vou verificar para voce', 'ja te retorno', 'me confirma so um detalhe', 'ja te mando a foto', 'vou ver com meus colaboradores', 'ja vejo para voce', 'so um momento'.",
+  "Use: 'vou verificar para voce', 'ja te retorno', 'me confirma so um detalhe', 'ja te mando a foto', 'vou ver com meus colaboradores', 'ja vejo para voce', 'so um momento', 'vou consultar aqui'.",
   "",
   "NUNCA inventar precos, disponibilidade ou condicao de peca.",
   "",
   "=== RESPOSTA OBRIGATORIA EM JSON VALIDO (sem texto fora do JSON) ===",
   '{"resposta": "<texto para enviar ao cliente>", "pedido": <true|false>, "peca": "<nome da peca ou null>", "veiculo": "<marca modelo ou null>", "ano": "<ano ou null>", "motor": "<motor ou null>", "nome_cliente": "<nome mencionado ou null>"}',
 ].join("\n");
+
+function normalizarNumero(num: string): string {
+  // Remove tudo que não é dígito
+  const digits = num.replace(/\D/g, "");
+  if (!digits) return num;
+  // Números brasileiros: 10 ou 11 dígitos sem código do país → adiciona 55
+  if (digits.length === 10 || digits.length === 11) return "55" + digits;
+  return digits;
+}
 
 async function buscarCliente(numero: string) {
   const { data } = await supabase
@@ -202,6 +235,16 @@ async function chamarClaude(
   }
 }
 
+async function enviarDigitando(numero: string) {
+  try {
+    await fetch(`${EVOLUTION_URL}/chat/sendPresence/${INSTANCE}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
+      body: JSON.stringify({ number: numero, options: { presence: "composing", delay: 1200 } }),
+    });
+  } catch (_) {}
+}
+
 async function enviarMensagem(numero: string, texto: string) {
   await fetch(EVOLUTION_URL + "/message/sendText/" + INSTANCE, {
     method: "POST",
@@ -259,9 +302,13 @@ Deno.serve(async (req: Request) => {
 
     // Mensagem enviada pelo atendente humano → ativa pausa de 5 minutos
     if (key?.fromMe) {
-      const numHumano = remoteJid
-        .replace("@s.whatsapp.net", "").replace("@c.us", "")
-        .replace("@lid", "").replace(/:\d+$/, "").trim();
+      // Para @lid usa o JID completo como chave (mesmo formato salvo no banco)
+      const numHumano = remoteJid.includes("@lid")
+        ? remoteJid
+        : normalizarNumero(
+            remoteJid.replace("@s.whatsapp.net", "").replace("@c.us", "")
+              .replace(/:\d+$/, "").trim()
+          );
       if (numHumano) await ativarPausaHumana(numHumano);
       return new Response("humano-pausado", { status: 200 });
     }
@@ -278,40 +325,59 @@ Deno.serve(async (req: Request) => {
       if (existe) return new Response("duplicate", { status: 200 });
     }
 
-    // Extract clean number (strip JID suffix + device index like :0 from @lid format)
-    let numero = remoteJid
-      .replace("@s.whatsapp.net", "")
-      .replace("@c.us", "")
-      .replace("@lid", "")
-      .replace(/:\d+$/, "")
-      .trim();
+    // Extrai número limpo do JID e normaliza para formato internacional
+    let numero = normalizarNumero(
+      remoteJid
+        .replace("@s.whatsapp.net", "")
+        .replace("@c.us", "")
+        .replace("@lid", "")
+        .replace(/:\d+$/, "")
+        .trim()
+    );
 
-    // For @lid JIDs, try to resolve real phone number via Evolution API
-    const lidRawNumber = remoteJid.includes("@lid") ? numero : "";
+    // Para JIDs @lid, tenta resolver o telefone real via Evolution API
     if (remoteJid.includes("@lid")) {
-      try {
-        const res = await fetch(`${EVOLUTION_URL}/contact/getContacts/${INSTANCE}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
-          body: JSON.stringify({ where: { id: remoteJid } }),
-        });
-        if (res.ok) {
-          const contacts = await res.json();
-          const real = contacts?.[0]?.number ||
-            contacts?.[0]?.remoteJid?.replace("@s.whatsapp.net", "").replace("@c.us", "");
-          if (real && /^\d{10,15}$/.test(real)) {
-            // Migrate existing records from @lid number to real phone
-            if (lidRawNumber && lidRawNumber !== real) {
+      let resolved = false;
+
+      // Tenta múltiplos formatos de query para encontrar o telefone real
+      const queries = [
+        { where: { id: remoteJid } },
+        { where: { jid: remoteJid } },
+        { where: { remoteJid: remoteJid } },
+      ];
+
+      for (const query of queries) {
+        if (resolved) break;
+        try {
+          const res = await fetch(`${EVOLUTION_URL}/contact/getContacts/${INSTANCE}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "apikey": EVOLUTION_KEY },
+            body: JSON.stringify(query),
+          });
+          if (res.ok) {
+            const contacts = await res.json();
+            const arr = Array.isArray(contacts) ? contacts : (contacts?.data || []);
+            const rawReal = arr?.[0]?.number || arr?.[0]?.phone ||
+              arr?.[0]?.remoteJid?.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "") ||
+              arr?.[0]?.jid?.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@lid", "");
+            const real = rawReal ? normalizarNumero(rawReal) : null;
+            if (real && /^\d{12,13}$/.test(real)) {
               await Promise.all([
-                supabase.from("pedidos").update({ numero: real }).eq("numero", lidRawNumber),
-                supabase.from("clientes").update({ numero: real }).eq("numero", lidRawNumber),
-                supabase.from("mensagens_whatsapp").update({ numero: real }).eq("numero", lidRawNumber),
+                supabase.from("pedidos").update({ numero: real }).eq("numero", numero),
+                supabase.from("clientes").update({ numero: real }).eq("numero", numero),
+                supabase.from("mensagens_whatsapp").update({ numero: real }).eq("numero", numero),
               ]);
+              numero = real;
+              resolved = true;
             }
-            numero = real;
           }
-        }
-      } catch (_) { /* keep raw numeric id as fallback */ }
+        } catch (_) {}
+      }
+
+      // Se não conseguiu resolver, usa o JID completo como identificador
+      if (!resolved) {
+        numero = remoteJid; // ex: "240922499539058@lid"
+      }
     }
 
     // For @lid JIDs Evolution API needs the full JID to reply correctly
@@ -491,15 +557,26 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Salva tudo no banco imediatamente (painel atualiza em tempo real)
     if (resposta) {
-      ops.push(enviarMensagem(numeroEnvio, resposta));
       ops.push(supabase.from("mensagens_whatsapp").insert({
         numero, nome: "Marcelo", mensagem: resposta, tipo: "text", de_mim: true, dados_raw: null,
       }));
     }
     await Promise.all(ops);
 
-    return new Response("ok", { status: 200 });
+    // Retorna 200 para o Evolution API não dar timeout nem retentar
+    const responseToEvolution = new Response("ok", { status: 200 });
+
+    // Envia para o WhatsApp com delay humanizado APÓS retornar ao Evolution API
+    if (resposta) {
+      const delay = 20000 + Math.floor(Math.random() * 11000);
+      await enviarDigitando(numeroEnvio);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      await enviarMensagem(numeroEnvio, resposta);
+    }
+
+    return responseToEvolution;
   } catch (err) {
     console.error("ERRO:", err);
     return new Response("error", { status: 500 });

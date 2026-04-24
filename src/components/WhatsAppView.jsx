@@ -36,6 +36,7 @@ function formatFullTime(iso) {
 
 function formatPhone(num) {
   if (!num) return ''
+  if (String(num).includes('@')) return 'WhatsApp'
   const n = String(num).replace(/\D/g, '').replace(/^55/, '')
   if (n.length === 11) return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`
   if (n.length === 10) return `(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`
